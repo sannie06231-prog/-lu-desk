@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>급여 현황</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f4f6fa;
+      background-image: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 45%);
+      color: #0f172a;
+    }
+    .card-elevated {
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.75);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px -4px rgba(15, 23, 42, 0.04);
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    .table-scroll::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    .table-scroll::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .table-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .table-scroll::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #ffffff; }
+      .print-full { overflow: visible !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+
+  <!-- ==================== ERP LOGIN VIEW ==================== -->
+  <div id="loginView" class="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-100 via-indigo-50/40 to-slate-100">
+    <div class="w-full max-w-xl bg-white rounded-3xl border border-slate-200/80 shadow-2xl shadow-slate-900/10 overflow-hidden">
+      <div class="px-8 py-6 bg-gradient-to-r from-slate-900 via-[#1a1847] to-indigo-950 text-white flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-lg shadow-md">₩</div>
+        <h1 class="text-xl font-extrabold tracking-tight">급여 현황</h1>
+      </div>
+
+      <form id="loginForm" class="p-8 sm:p-10 space-y-5">
+        <div id="loginErrorBox" class="hidden text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3"></div>
+
+        <div>
+          <label for="loginEmail" class="block text-sm font-semibold text-slate-700 mb-1.5">아이디 (이메일)</label>
+          <input id="loginEmail" type="text" required placeholder="예: seoyeon@company.com" class="w-full px-4 py-3 text-sm bg-slate-50/60 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div>
+          <label for="loginPassword" class="block text-sm font-semibold text-slate-700 mb-1.5">비밀번호</label>
+          <input id="loginPassword" type="password" required placeholder="비밀번호 입력" class="w-full px-4 py-3 text-sm bg-slate-50/60 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <button id="btnLoginSubmit" type="submit" class="w-full py-3.5 text-sm font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 transition shadow-lg shadow-indigo-500/25">
+          로그인
+        </button>
+
+        <!-- Demo Quick Login (shown when Supabase is not configured) -->
+        <div id="demoLoginSection" class="pt-4 border-t border-slate-100 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-semibold text-slate-500">체험용 빠른 로그인 (데모 모드)</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium">서버 미연동</span>
+          </div>
+          <div class="grid grid-cols-1 gap-2">
+            <button type="button" data-demo-user="admin" class="w-full px-3 py-2 text-left text-xs rounded-lg border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/70 transition flex items-center justify-between">
+              <div>
+                <div class="font-bold text-indigo-900">경리 담당자 (관리자)</div>
+                <div class="text-[11px] text-indigo-600">전체 프리랜서 급여 조회·수정·단가 관리</div>
+              </div>
+              <span class="text-[11px] font-semibold text-indigo-700">접속 →</span>
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" data-demo-user="seoyeon" class="px-3 py-2 text-left text-xs rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition">
+                <div class="font-bold text-slate-800">김서연 매니저</div>
+                <div class="text-[10px] text-slate-500">본인 급여만 조회</div>
+              </button>
+              <button type="button" data-demo-user="junho" class="px-3 py-2 text-left text-xs rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition">
+                <div class="font-bold text-slate-800">이준호 매니저</div>
+                <div class="text-[10px] text-slate-500">본인 급여만 조회</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN ERP APP VIEW ==================== -->
+  <div id="appView" class="hidden">
+    <!-- Frosted Glass Top Bar -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/70 sticky top-0 z-30 no-print">
+      <div class="max-w-[1540px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-indigo-500/20">
+            ₩
+          </div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-extrabold text-slate-900 tracking-tight">급여 현황</h1>
+            <span id="currentUserBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100"></span>
+            <span id="syncModeBadge" class="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">데모 모드</span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Admin freelancer switcher -->
+          <div id="adminFreelancerBox" class="hidden flex items-center gap-1.5 bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-1.5">
+            <span class="text-[11px] text-slate-500 font-medium">담당자</span>
+            <select id="adminFreelancerSelect" class="text-xs font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"></select>
+          </div>
+
+          <!-- Freelancer name display -->
+          <div id="freelancerNameBox" class="flex items-center gap-1.5 bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-1.5">
+            <span class="text-[11px] text-slate-500 font-medium">프리랜서</span>
+            <input id="freelancerName" type="text" value="김서연 매니저" placeholder="성명" class="w-24 text-xs font-bold text-slate-900 bg-transparent focus:outline-none" />
+          </div>
+
+          <input id="settlementMonth" type="month" value="2026-11" class="text-xs font-semibold text-slate-700 bg-slate-100/80 border border-slate-200/80 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer" title="정산월 선택" />
+
+          <button id="btnSaveMonth" type="button" class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 transition shadow-md shadow-indigo-500/20">
+            저장
+          </button>
+          <span id="saveStatusText" class="text-[11px] text-emerald-600 font-bold hidden">저장됨</span>
+
+          <input id="excelFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+          <button id="btnImportExcel" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition shadow-sm">
+            엑셀 업로드
+          </button>
+          <button id="btnExportCsv" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition shadow-sm">
+            엑셀(CSV) 다운로드
+          </button>
+          <button id="btnPrint" type="button" class="px-2.5 py-1.5 text-xs font-medium rounded-xl bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition">
+            인쇄
+          </button>
+          <button id="btnOpenSupabaseFromApp" type="button" class="px-2.5 py-1.5 text-xs font-medium rounded-xl text-slate-500 hover:bg-slate-100 transition" title="Supabase DB 연동 설정">
+            ⚙
+          </button>
+          <button id="btnLogout" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-xl text-rose-600 bg-rose-50/70 hover:bg-rose-100 transition">
+            로그아웃
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-[1540px] mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+      <!-- Executive Hero Settlement Card -->
+      <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[#1a1847] to-indigo-950 p-5 sm:p-6 text-white shadow-xl shadow-slate-900/10">
+        <div class="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none"></div>
+        <div class="relative grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+          <div class="lg:col-span-4 space-y-1.5 lg:pr-6 lg:border-r lg:border-white/10">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-indigo-200">최종 실지급 급여 (3.3% 제외)</span>
+              <span id="kpiMonthBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/15 text-white">11월</span>
+            </div>
+            <div id="kpiFinalPayout" class="text-3xl sm:text-4xl font-extrabold tabular-nums tracking-tight text-white">0원</div>
+            <div class="text-xs text-slate-300 tabular-nums">
+              원천징수 3.3%: <span id="kpiTax" class="font-semibold text-rose-300">-0원</span>
+            </div>
+          </div>
+
+          <div class="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="rounded-xl bg-white/[0.07] border border-white/10 p-3.5 backdrop-blur-sm">
+              <div class="flex items-center justify-between text-[11px] text-slate-300 mb-1">
+                <span>총 계약금액</span>
+                <span id="kpiCountBadge" class="text-[10px] px-1.5 py-0.5 rounded bg-white/15 text-white font-semibold">0건</span>
+              </div>
+              <div id="kpiContract" class="text-base sm:text-lg font-bold tabular-nums text-white">0원</div>
+              <div class="text-[11px] text-slate-400 mt-1 tabular-nums">VAT: <span id="kpiVatTotal" class="text-slate-200">0원</span></div>
+            </div>
+
+            <div class="rounded-xl bg-white/[0.07] border border-white/10 p-3.5 backdrop-blur-sm">
+              <div class="text-[11px] text-slate-300 mb-1">리셀 및 작업비용</div>
+              <div id="kpiCost" class="text-base sm:text-lg font-bold tabular-nums text-white">0원</div>
+              <div class="text-[11px] text-slate-400 mt-1">슬롯 × 수량 × 일수</div>
+            </div>
+
+            <div class="rounded-xl bg-white/[0.07] border border-white/10 p-3.5 backdrop-blur-sm">
+              <div class="text-[11px] text-slate-300 mb-1">총 순수익</div>
+              <div id="kpiNetProfit" class="text-base sm:text-lg font-bold tabular-nums text-emerald-300">0원</div>
+              <div class="text-[11px] text-slate-400 mt-1">계산서: <span id="kpiInvoiceCount" class="text-slate-200">0/0건</span></div>
+            </div>
+
+            <div class="rounded-xl bg-white/[0.07] border border-white/10 p-3.5 backdrop-blur-sm">
+              <div class="text-[11px] text-slate-300 mb-1">인센티브 50% (세전)</div>
+              <div id="kpiIncentiveGross" class="text-base sm:text-lg font-bold tabular-nums text-indigo-300">0원</div>
+              <div class="text-[11px] text-slate-400 mt-1">입금완료: <span id="kpiPaidCount" class="text-emerald-300">0/0건</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Segmented Year & Month Navigation Pill Bar -->
+      <section class="card-elevated rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 no-print">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div id="yearTabsContainer" class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl"></div>
+          <div id="monthTabsContainer" class="flex flex-wrap items-center gap-1"></div>
+        </div>
+        <button id="btnToggleForms" type="button" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-3 py-1.5 rounded-xl bg-indigo-50/70 hover:bg-indigo-100/70 transition">
+          입력/슬롯 접기 ▲
+        </button>
+      </section>
+
+      <!-- Unpaid Summary Pill Card -->
+      <section class="card-elevated rounded-2xl overflow-hidden border-l-4 border-l-rose-500">
+        <div class="px-4 py-2.5 bg-rose-50/40 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 text-rose-600 text-[11px] font-bold">!</span>
+            <h2 class="text-xs font-bold text-slate-800">이번달 미입금건</h2>
+            <span id="unpaidCountBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">0건</span>
+            <span class="text-xs font-bold text-rose-600 tabular-nums">합계 <span id="unpaidTotalAmount">0원</span></span>
+          </div>
+          <button id="btnToggleUnpaid" type="button" class="text-[11px] font-semibold text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded-lg hover:bg-white transition no-print">
+            목록 접기 ▲
+          </button>
+        </div>
+        <div id="unpaidTableWrap" class="table-scroll overflow-x-auto border-t border-slate-100">
+          <table class="w-full text-left border-collapse min-w-[680px]">
+            <thead>
+              <tr class="bg-slate-50/60 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                <th class="py-2 px-4">결제날짜</th>
+                <th class="py-2 px-4">업체명</th>
+                <th class="py-2 px-4">상품명</th>
+                <th class="py-2 px-3 text-center">구분</th>
+                <th class="py-2 px-3 text-center">계산서</th>
+                <th class="py-2 px-4 text-right">입금 예정액</th>
+                <th class="py-2 px-4 text-center no-print">처리</th>
+              </tr>
+            </thead>
+            <tbody id="unpaidTableBody" class="divide-y divide-slate-100 text-xs">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Workspace: Slot Learning + Entry Form -->
+      <div id="formsWorkspace" class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch no-print">
+
+        <!-- Left: 슬롯별 1일 리셀 단가 학습 -->
+        <aside class="xl:col-span-4 card-elevated rounded-2xl overflow-hidden flex flex-col">
+          <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+              <h2 class="text-xs font-bold text-slate-800">리셀</h2>
+            </div>
+            <span id="slotCountBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">0개</span>
+          </div>
+
+          <form id="slotForm" class="p-4 border-b border-slate-100 bg-slate-50/50 space-y-2.5">
+            <input type="hidden" id="editingSlotId" value="" />
+            <div class="grid grid-cols-12 gap-2">
+              <div class="col-span-7">
+                <input id="slotNameInput" type="text" required placeholder="슬롯명 (예: 쎄다)" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div class="col-span-5">
+                <input id="slotDailyCostInput" type="number" min="0" step="1" required placeholder="1일 단가 (원)" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="btnSaveSlot" type="submit" class="flex-1 py-2 px-3 text-xs font-bold rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition">
+                등록하기
+              </button>
+              <button id="btnCancelSlotEdit" type="button" class="hidden py-2 px-3 text-xs font-medium rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                취소
+              </button>
+            </div>
+          </form>
+
+          <div class="divide-y divide-slate-100 max-h-[340px] flex-1 overflow-y-auto" id="slotListContainer">
+            <!-- Rendered by JS -->
+          </div>
+
+          <div class="px-4 py-2.5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+            <span>단가 수정 후 일괄 적용</span>
+            <button id="btnSyncAllSlotCosts" type="button" class="font-bold text-indigo-600 hover:text-indigo-800 transition">
+              전체 내역 단가 재계산
+            </button>
+          </div>
+        </aside>
+
+        <!-- Right: 정산 내역 등록 -->
+        <section class="xl:col-span-8 flex flex-col">
+          <div class="card-elevated rounded-2xl overflow-hidden flex-1 flex flex-col">
+            <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+              <h2 id="entryFormTitle" class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span id="entryFormTitleText">정산 내역 등록</span>
+              </h2>
+              <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">인센 50% 고정</span>
+            </div>
+
+            <form id="entryForm" class="p-5 flex-1 flex flex-col justify-between gap-4">
+              <input type="hidden" id="editingEntryId" value="" />
+
+              <!-- Row 1: Dates, Client, Status, Invoice, Paid -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label for="fOpenDate" class="text-[11px] font-semibold text-slate-500">오픈날짜</label>
+                    <label class="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer select-none">
+                      <input id="fOpenDateTbd" type="checkbox" class="w-3 h-3 rounded border-slate-300 text-indigo-600" />
+                      X
+                    </label>
+                  </div>
+                  <input id="fOpenDate" type="date" class="w-full px-2.5 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label for="fPayDate" class="text-[11px] font-semibold text-slate-500">결제날짜</label>
+                    <label class="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer select-none">
+                      <input id="fPayDateTbd" type="checkbox" checked class="w-3 h-3 rounded border-slate-300 text-indigo-600" />
+                      X
+                    </label>
+                  </div>
+                  <input id="fPayDate" type="date" class="w-full px-2.5 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label for="fClient" class="block text-[11px] font-semibold text-slate-500 mb-1">업체명 *</label>
+                  <input id="fClient" type="text" required placeholder="업체명 입력" class="w-full px-3 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label for="fStatus" class="block text-[11px] font-semibold text-slate-500 mb-1">구분 *</label>
+                  <select id="fStatus" class="w-full px-2.5 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="오픈">오픈</option>
+                    <option value="중단">중단</option>
+                    <option value="환불">환불</option>
+                    <option value="이월">이월</option>
+                  </select>
+                </div>
+                <div class="flex items-end">
+                  <label class="flex items-center gap-2 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 w-full hover:bg-slate-100 transition">
+                    <input id="fInvoice" type="checkbox" checked class="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300" />
+                    <span class="text-xs font-semibold text-slate-700">계산서 발행</span>
+                  </label>
+                </div>
+                <div class="flex items-end">
+                  <label class="flex items-center gap-2 cursor-pointer select-none bg-emerald-50/50 border border-emerald-200/80 rounded-xl px-3 py-2 w-full hover:bg-emerald-50 transition">
+                    <input id="fPaid" type="checkbox" class="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300" />
+                    <span class="text-xs font-semibold text-emerald-800">입금 완료</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Row 2: Dynamic Multi-Slot Rows + Product Name -->
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-3 border-t border-slate-100 items-start">
+                <div class="lg:col-span-7 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-semibold text-slate-500">슬롯 · 수량 · 일수</span>
+                    <button id="btnAddSlotItem" type="button" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 px-2.5 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition">
+                      + 슬롯 추가
+                    </button>
+                  </div>
+                  <div id="slotItemsContainer" class="space-y-1.5">
+                    <!-- Dynamic slot rows rendered by JS -->
+                  </div>
+                </div>
+                <div class="lg:col-span-5">
+                  <label for="fProductName" class="block text-[11px] font-semibold text-slate-500 mb-1">상품명 *</label>
+                  <input id="fProductName" type="text" required placeholder="예: 쎄다 2개 10일 오픈 (자동인식)" class="w-full px-3 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <div id="productParseBadge" class="hidden text-[11px] mt-1.5 font-medium"></div>
+                </div>
+              </div>
+
+              <!-- Row 3: Contract Amount, Auto VAT, Resale Cost, Extra Work Cost, Live Preview -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 pt-3 border-t border-slate-100 items-end">
+                <div>
+                  <label for="fContract" class="block text-[11px] font-semibold text-slate-500 mb-1">계약금액 (공급가) *</label>
+                  <input id="fContract" type="number" step="1" required placeholder="0" class="w-full px-3 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl tabular-nums font-bold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label for="fVatAmount" class="block text-[11px] font-semibold text-slate-400 mb-1">VAT 포함 금액</label>
+                  <input id="fVatAmount" type="text" readonly value="-" class="w-full px-3 py-2 text-xs border border-slate-200 bg-slate-100/70 text-slate-600 rounded-xl tabular-nums font-semibold cursor-default" />
+                </div>
+                <div>
+                  <label for="fResaleCost" class="block text-[11px] font-semibold text-slate-500 mb-1">리셀 비용</label>
+                  <input id="fResaleCost" type="number" step="1" value="0" class="w-full px-3 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl tabular-nums focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label for="fWorkCost" class="block text-[11px] font-semibold text-slate-500 mb-1">추가 작업비용</label>
+                  <input id="fWorkCost" type="number" step="1" value="0" class="w-full px-3 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl tabular-nums focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+
+                <!-- Live Calculation Summary Box -->
+                <div class="lg:col-span-2 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl px-3.5 py-2 flex items-center justify-between gap-2">
+                  <div>
+                    <div class="text-[10px] text-indigo-600 font-semibold">순수익 / 인센 50%</div>
+                    <div class="text-xs font-bold text-slate-800 tabular-nums">
+                      <span id="previewNet">0원</span> / <span id="previewIncen" class="text-indigo-700">0원</span>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-[10px] text-indigo-600 font-semibold">3.3% 제외 실지급</div>
+                    <div id="previewFinal" class="text-sm font-extrabold text-indigo-700 tabular-nums">0원</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Memo & Submit -->
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-3 border-t border-slate-100 items-end">
+                <div class="lg:col-span-9">
+                  <label for="fMemo" class="block text-[11px] font-semibold text-slate-500 mb-1">메모</label>
+                  <input id="fMemo" type="text" placeholder="특이사항이나 전달내용을 입력하세요" class="w-full px-3 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div class="lg:col-span-3 flex items-center justify-end gap-2">
+                  <button id="btnCancelEntryEdit" type="button" class="hidden px-3 py-2 text-xs font-medium rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                    취소
+                  </button>
+                  <button id="btnSaveEntry" type="submit" class="w-full py-2 px-4 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 transition shadow-md shadow-indigo-500/20">
+                    + 정산 내역 추가
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      <!-- Full-Width Modern 업체 정산 리스트 -->
+      <section class="card-elevated rounded-2xl overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 no-print">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-sm font-extrabold text-slate-900 mr-2">업체 정산 리스트</h2>
+            <div class="relative">
+              <input id="searchQuery" type="text" placeholder="업체명, 상품명, 메모 검색..." class="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl w-52 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+            </div>
+            <select id="filterStatus" class="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
+              <option value="ALL">구분: 전체</option>
+              <option value="오픈">오픈</option>
+              <option value="중단">중단</option>
+              <option value="환불">환불</option>
+              <option value="이월">이월</option>
+            </select>
+            <select id="filterInvoice" class="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
+              <option value="ALL">계산서: 전체</option>
+              <option value="Y">발행</option>
+              <option value="N">미발행</option>
+            </select>
+            <select id="filterPaid" class="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
+              <option value="ALL">입금: 전체</option>
+              <option value="Y">입금완료</option>
+              <option value="N">미입금</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-xs text-slate-500">
+              총 <span id="visibleCountText" class="font-extrabold text-indigo-600">0건</span>
+            </div>
+            <button id="btnDeleteSelectedEntries" type="button" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition">
+              선택 삭제
+            </button>
+          </div>
+        </div>
+
+        <div class="table-scroll overflow-x-auto print-full">
+          <table class="w-full text-left border-collapse min-w-[1320px]">
+            <thead>
+              <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                <th class="py-3 px-3 text-center no-print">
+                  <input id="selectAllEntries" type="checkbox" class="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 cursor-pointer" title="전체 선택" />
+                </th>
+                <th class="py-3 px-4">오픈날짜</th>
+                <th class="py-3 px-4">결제날짜</th>
+                <th class="py-3 px-4">업체명</th>
+                <th class="py-3 px-3 text-center">구분</th>
+                <th class="py-3 px-3 text-center">인센율</th>
+                <th class="py-3 px-4">상품명 (슬롯/일수)</th>
+                <th class="py-3 px-3 text-center">계산서 여부</th>
+                <th class="py-3 px-3 text-center">입금 여부</th>
+                <th class="py-3 px-4 text-right">계약금액</th>
+                <th class="py-3 px-4 text-right">VAT 포함</th>
+                <th class="py-3 px-4 text-right">리셀 및 작업비용</th>
+                <th class="py-3 px-4 text-right">순수익</th>
+                <th class="py-3 px-4 text-right text-indigo-600">인센 50%</th>
+                <th class="py-3 px-4 text-right text-indigo-900 bg-indigo-50/60">3.3% 제외 실지급</th>
+                <th class="py-3 px-4">메모</th>
+                <th class="py-3 px-3 text-center no-print">관리</th>
+              </tr>
+            </thead>
+            <tbody id="payrollTableBody" class="divide-y divide-slate-100 text-[13px]">
+              <!-- Rendered by JS -->
+            </tbody>
+            <tfoot id="payrollTableFoot" class="bg-slate-50/90 border-t-2 border-slate-200 text-[13px] font-extrabold text-slate-900">
+              <!-- Totals row rendered by JS -->
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Supabase Server Connection Modal -->
+  <div id="supabaseModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
+      <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-900">Supabase 무료 클라우드 DB 연동 설정</h3>
+        <button id="btnCloseSupabaseModal" type="button" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+      </div>
+      <form id="supabaseConfigForm" class="p-5 space-y-4">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          무료 <strong>Supabase</strong> 프로젝트의 URL과 Anon Key를 입력하면 PC·모바일 어디서나 개인별 아이디/비밀번호로 로그인하고 본인 급여만 안전하게 조회·저장할 수 있습니다.
+        </p>
+        <div>
+          <label for="sbUrlInput" class="block text-[11px] font-semibold text-slate-700 mb-1">Supabase Project URL</label>
+          <input id="sbUrlInput" type="url" placeholder="https://xxxxxxxx.supabase.co" class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label for="sbKeyInput" class="block text-[11px] font-semibold text-slate-700 mb-1">Supabase Anon Public Key</label>
+          <input id="sbKeyInput" type="text" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-slate-700">1회성 DB 테이블 & 보안규칙(RLS) 생성 SQL</span>
+            <button id="btnCopySql" type="button" class="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800">SQL 복사하기</button>
+          </div>
+          <p class="text-[11px] text-slate-500">Supabase 대시보드 → SQL Editor에 붙여넣고 Run 하면 개인별 데이터 격리가 자동 설정됩니다.</p>
+        </div>
+        <div class="flex items-center justify-between pt-1">
+          <button id="btnResetSupabase" type="button" class="text-xs font-medium text-rose-600 hover:underline">연동 해제 (데모 모드)</button>
+          <div class="flex gap-2">
+            <button id="btnCancelSupabase" type="button" class="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">닫기</button>
+            <button type="submit" class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">연동 저장</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- In-page Confirmation Modal -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-xl max-w-sm w-full p-5 space-y-4">
+      <div>
+        <h3 id="confirmTitle" class="text-sm font-bold text-slate-900">확인</h3>
+        <p id="confirmMessage" class="text-xs text-slate-600 mt-1.5 leading-relaxed"></p>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="confirmCancelBtn" type="button" class="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">취소</button>
+        <button id="confirmOkBtn" type="button" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="hidden fixed bottom-12 right-5 z-50 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-lg shadow-lg transition-opacity"></div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY_SLOTS = 'erp_payroll_slots_v3';
+      const STORAGE_KEY_USER_DATA = 'erp_payroll_userdata_v3';
+      const STORAGE_KEY_SESSION = 'erp_payroll_session_v3';
+      const STORAGE_KEY_SB_CONFIG = 'erp_payroll_sb_config_v3';
+
+      const SUPABASE_SQL_SETUP = `-- 1. 사용자 프로필 (경리 admin vs 프리랜서 freelancer)
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  name text not null,
+  role text not null default 'freelancer' check (role in ('admin', 'freelancer'))
+);
+
+-- 2. 슬롯 단가 테이블 (공통)
+create table if not exists slot_prices (
+  id text primary key,
+  name text not null,
+  daily_cost numeric not null default 0
+);
+
+-- 3. 월별 급여 정산 내역 테이블 (개인별 격리)
+create table if not exists payroll_records (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  month text not null,
+  open_date text,
+  pay_date text,
+  client text,
+  status text default '오픈',
+  slot_id text,
+  days integer default 0,
+  product_name text,
+  invoice boolean default false,
+  paid boolean default false,
+  contract numeric default 0,
+  resale_cost numeric default 0,
+  work_cost numeric default 0,
+  memo text default ''
+);
+
+alter table payroll_records add column if not exists memo text default '';
+
+-- 4. 무한재귀 방지용 관리자 체크 함수
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin'
+  );
+$$;
+
+-- 5. RLS(행 수준 보안) 활성화: 본인과 경리(admin)만 조회/저장 가능
+alter table profiles enable row level security;
+alter table slot_prices enable row level security;
+alter table payroll_records enable row level security;
+
+drop policy if exists "본인 또는 관리자 프로필 조회" on profiles;
+create policy "본인 또는 관리자 프로필 조회" on profiles
+  for select using (auth.uid() = id or public.is_admin());
+
+drop policy if exists "로그인 사용자 슬롯 조회" on slot_prices;
+drop policy if exists "관리자 슬롯 수정" on slot_prices;
+create policy "로그인 사용자 슬롯 관리" on slot_prices
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+drop policy if exists "본인 급여만 조회 및 관리" on payroll_records;
+create policy "본인 급여만 조회 및 관리" on payroll_records
+  for all using (auth.uid() = user_id or public.is_admin())
+  with check (auth.uid() = user_id or public.is_admin());
+
+-- 6. 할 일 메모 테이블 (PC/모바일 동기화)
+create table if not exists todo_memos (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  todo_date text,
+  client text,
+  memo text,
+  done boolean default false
+);
+
+alter table todo_memos enable row level security;
+drop policy if exists "본인 할일메모 관리" on todo_memos;
+create policy "본인 할일메모 관리" on todo_memos
+  for all using (auth.uid() = user_id or public.is_admin())
+  with check (auth.uid() = user_id or public.is_admin());
+
+-- 7. API 권한 부여 (permission denied 방지)
+grant usage on schema public to anon, authenticated;
+grant all on table public.profiles to authenticated;
+grant all on table public.slot_prices to authenticated;
+grant all on table public.payroll_records to authenticated;
+grant all on table public.todo_memos to authenticated;
+grant execute on function public.is_admin() to authenticated;`;
+
+      const DEMO_USERS = {
+        admin: { id: 'admin', name: '경리 담당자', role: 'admin', email: 'admin@company.com' },
+        seoyeon: { id: 'seoyeon', name: '김서연 매니저', role: 'freelancer', email: 'seoyeon@company.com' },
+        junho: { id: 'junho', name: '이준호 매니저', role: 'freelancer', email: 'junho@company.com' }
+      };
+
+      const DEFAULT_SLOTS = [
+        { id: 'slot_1', name: '플레이스 상위노출 A', dailyCost: 15000 },
+        { id: 'slot_2', name: '스마트스토어 트래픽', dailyCost: 12000 },
+        { id: 'slot_3', name: '블로그 체험단 슬롯', dailyCost: 25000 },
+        { id: 'slot_4', name: '인스타 릴스 부스팅', dailyCost: 18000 }
+      ];
+
+      function generateAllMonths() {
+        const list = ['2026-11', '2026-12'];
+        for (let y = 2027; y <= 2030; y++) {
+          for (let m = 1; m <= 12; m++) {
+            list.push(`${y}-${String(m).padStart(2, '0')}`);
+          }
+        }
+        return list;
+      }
+      const ALL_MONTHS = generateAllMonths();
+
+      function createEmptyMonthsMap() {
+        const map = {};
+        ALL_MONTHS.forEach(ym => { map[ym] = []; });
+        return map;
+      }
+
+      const DEFAULT_USER_DATA = {
+        seoyeon: {
+          ...createEmptyMonthsMap(),
+          '2026-11': [
+            {
+              id: 'ent_1', openDate: '2026-11-02', payDate: '2026-11-01',
+              client: '(주)블루밍카페', status: '오픈', slotId: 'slot_1', days: 15,
+              productName: '플레이스 상위노출 A 15일 오픈', invoice: true, paid: true,
+              contract: 800000, resaleCost: 225000, workCost: 30000, memo: '월초 정상 오픈'
+            },
+            {
+              id: 'ent_2', openDate: '2026-11-05', payDate: '2026-11-04',
+              client: '에이치뷰티 클리닉', status: '오픈', slotId: 'slot_3', days: 10,
+              productName: '블로그 체험단 슬롯 10일 오픈', invoice: true, paid: false,
+              contract: 1200000, resaleCost: 250000, workCost: 50000, memo: '주말 입금 예정'
+            },
+            {
+              id: 'ent_3', openDate: '2026-11-08', payDate: '',
+              client: '모던리빙 스토어', status: '중단', slotId: 'slot_2', days: 5,
+              productName: '스마트스토어 트래픽 5일 오픈', invoice: false, paid: false,
+              contract: 300000, resaleCost: 60000, workCost: 0, memo: '결제일 미정'
+            },
+            {
+              id: 'ent_4', openDate: '2026-11-12', payDate: '2026-11-13',
+              client: '모던리빙 스토어 (환불)', status: '환불', slotId: 'slot_2', days: 5,
+              productName: '스마트스토어 트래픽 5일 환불 차감', invoice: false, paid: true,
+              contract: -300000, resaleCost: -60000, workCost: 0, memo: '환불 차감 처리'
+            }
+          ]
+        },
+        junho: {
+          ...createEmptyMonthsMap(),
+          '2026-11': [
+            {
+              id: 'ent_jh_nov_1', openDate: '2026-11-03', payDate: '2026-11-02',
+              client: '네오테크 몰', status: '오픈', slotId: 'slot_2', days: 20,
+              productName: '스마트스토어 트래픽 20일 오픈', invoice: true, paid: false,
+              contract: 1100000, resaleCost: 240000, workCost: 0, memo: ''
+            }
+          ]
+        }
+      };
+
+      // State
+      let supabaseClient = null;
+      const DEFAULT_SB_CONFIG = {
+        url: 'https://fyygfvmexwpnywddmseo.supabase.co',
+        anonKey: 'sb_publishable_JPeBNTvLjU232QyIikBpSg_UnbsybN5'
+      };
+      let sbConfig = { ...DEFAULT_SB_CONFIG };
+      let currentUser = null; // { id, name, role, email }
+      let activeFreelancerId = 'seoyeon'; // Which freelancer's data is currently viewed
+      let freelancerDirectory = [
+        { id: 'seoyeon', name: '김서연 매니저' },
+        { id: 'junho', name: '이준호 매니저' }
+      ];
+      let slots = [];
+      let userData = {}; // { [userId]: { [month]: entries[] } }
+      let currentMonth = '2026-11';
+      let activeYear = '2026';
+      let pendingConfirmAction = null;
+      let isResaleManuallyEdited = false;
+
+      // Helpers
+      const fmt = (n) => {
+        const num = Math.round(Number(n) || 0);
+        return num.toLocaleString('ko-KR') + '원';
+      };
+
+      const uid = (prefix) => prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      const getTodayYmd = () => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+
+      function sanitizeMonthMap(map) {
+        const clean = createEmptyMonthsMap();
+        if (map && typeof map === 'object') {
+          Object.keys(map).forEach(ym => {
+            if (ym >= '2026-11' && Array.isArray(map[ym])) {
+              clean[ym] = map[ym];
+            }
+          });
+        }
+        return clean;
+      }
+
+      function getTargetMonthMap() {
+        userData[activeFreelancerId] = sanitizeMonthMap(userData[activeFreelancerId]);
+        return userData[activeFreelancerId];
+      }
+
+      function getCurrentEntries() {
+        const map = getTargetMonthMap();
+        if (!Array.isArray(map[currentMonth])) {
+          map[currentMonth] = [];
+        }
+        return map[currentMonth];
+      }
+
+      function setCurrentEntries(nextEntries) {
+        const map = getTargetMonthMap();
+        map[currentMonth] = nextEntries;
+      }
+
+      function formatMonthLabel(ym) {
+        if (!ym || !ym.includes('-')) return ym;
+        const [y, m] = ym.split('-');
+        return `${y.slice(2)}년 ${Number(m)}월`;
+      }
+
+      function showToast(msg) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        clearTimeout(el._timer);
+        el._timer = setTimeout(() => {
+          el.classList.add('hidden');
+        }, 2600);
+      }
+
+      function openConfirm(title, message, onConfirm) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        pendingConfirmAction = onConfirm;
+        document.getElementById('confirmModal').classList.remove('hidden');
+      }
+
+      function closeConfirm() {
+        document.getElementById('confirmModal').classList.add('hidden');
+        pendingConfirmAction = null;
+      }
+
+      function initSupabaseClient() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY_SB_CONFIG);
+          sbConfig = raw ? JSON.parse(raw) : { ...DEFAULT_SB_CONFIG };
+        } catch (e) {
+          sbConfig = { ...DEFAULT_SB_CONFIG };
+        }
+
+        if (sbConfig.url && sbConfig.anonKey && window.supabase && typeof window.supabase.createClient === 'function') {
+          try {
+            supabaseClient = window.supabase.createClient(sbConfig.url, sbConfig.anonKey);
+            document.getElementById('syncModeBadge').textContent = 'Supabase 실서버 연동';
+            document.getElementById('syncModeBadge').className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+            document.getElementById('demoLoginSection').classList.add('hidden');
+            return true;
+          } catch (e) {
+            supabaseClient = null;
+          }
+        }
+        supabaseClient = null;
+        document.getElementById('syncModeBadge').textContent = '데모 모드';
+        document.getElementById('syncModeBadge').className = 'text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+        document.getElementById('demoLoginSection').classList.remove('hidden');
+        return false;
+      }
+
+      async function saveState(showBadge = false) {
+        try {
+          localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots));
+          localStorage.setItem(STORAGE_KEY_USER_DATA, JSON.stringify(userData));
+          if (currentUser) {
+            localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify({ currentUser, activeFreelancerId, currentMonth }));
+          }
+        } catch (e) {}
+
+        // If Supabase is connected, sync current month's entries & slots
+        if (supabaseClient && currentUser) {
+          try {
+            const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+            const targetUid = isUuid(activeFreelancerId) ? activeFreelancerId : currentUser.id;
+            if (isUuid(targetUid)) {
+              const baseEntries = getCurrentEntries().map(e => ({
+                id: e.id,
+                user_id: targetUid,
+                month: currentMonth,
+                open_date: e.openDate || '',
+                pay_date: e.payDate || '',
+                client: e.client || '',
+                status: e.status || '오픈',
+                slot_id: e.slotId || '',
+                days: Number(e.days) || 0,
+                product_name: e.productName || '',
+                invoice: !!e.invoice,
+                paid: !!e.paid,
+                contract: Number(e.contract) || 0,
+                resale_cost: Number(e.resaleCost) || 0,
+                work_cost: Number(e.workCost) || 0
+              }));
+              const entriesWithMemo = baseEntries.map((row, idx) => ({
+                ...row,
+                memo: (getCurrentEntries()[idx] && getCurrentEntries()[idx].memo) || ''
+              }));
+
+              if (entriesWithMemo.length > 0) {
+                let { error: recErr } = await supabaseClient.from('payroll_records').upsert(entriesWithMemo);
+                if (recErr && String(recErr.message || '').toLowerCase().includes('memo')) {
+                  // Retry without memo if user hasn't added memo column in Supabase yet
+                  const retry = await supabaseClient.from('payroll_records').upsert(baseEntries);
+                  recErr = retry.error;
+                }
+                if (recErr) {
+                  showToast('서버 저장 오류: ' + recErr.message);
+                  return false;
+                }
+              }
+            }
+
+            // Reconcile slot_prices in Supabase: delete removed slots & upsert current slots
+            const { data: remoteSlots } = await supabaseClient.from('slot_prices').select('id');
+            if (Array.isArray(remoteSlots)) {
+              const keepIds = new Set(slots.map(s => s.id));
+              const toDelete = remoteSlots.map(r => r.id).filter(id => !keepIds.has(id));
+              if (toDelete.length > 0) {
+                const { error: delSlotErr } = await supabaseClient.from('slot_prices').delete().in('id', toDelete);
+                if (delSlotErr) {
+                  showToast('슬롯 삭제 동기화 오류: ' + delSlotErr.message);
+                  return false;
+                }
+              }
+            }
+            if (slots.length > 0) {
+              const { error: slotErr } = await supabaseClient.from('slot_prices').upsert(slots.map(s => ({
+                id: s.id, name: s.name, daily_cost: Number(s.dailyCost) || 0
+              })));
+              if (slotErr) {
+                showToast('슬롯 서버 저장 오류: ' + slotErr.message);
+                return false;
+              }
+            }
+          } catch (err) {
+            showToast('서버 연결 중 오류가 발생했습니다.');
+            return false;
+          }
+        }
+
+        if (showBadge) {
+          const statusEl = document.getElementById('saveStatusText');
+          statusEl.classList.remove('hidden');
+          clearTimeout(statusEl._timer);
+          statusEl._timer = setTimeout(() => statusEl.classList.add('hidden'), 2500);
+        }
+        return true;
+      }
+
+      function loadLocalData() {
+        try {
+          const s = localStorage.getItem(STORAGE_KEY_SLOTS);
+          const u = localStorage.getItem(STORAGE_KEY_USER_DATA);
+          slots = s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_SLOTS));
+          userData = u ? JSON.parse(u) : JSON.parse(JSON.stringify(DEFAULT_USER_DATA));
+          Object.keys(userData).forEach(uidKey => {
+            userData[uidKey] = sanitizeMonthMap(userData[uidKey]);
+          });
+        } catch (e) {
+          slots = JSON.parse(JSON.stringify(DEFAULT_SLOTS));
+          userData = JSON.parse(JSON.stringify(DEFAULT_USER_DATA));
+        }
+        if (currentMonth < '2026-11') currentMonth = '2026-11';
+        activeYear = currentMonth.slice(0, 4);
+      }
+
+      async function loadRemoteDataFromSupabase(user) {
+        if (!supabaseClient || !user) return;
+        try {
+          // 1. Load slots (always reflect exact cloud state, even if 0 rows)
+          const { data: slotRows, error: slotErr } = await supabaseClient.from('slot_prices').select('*');
+          if (!slotErr && Array.isArray(slotRows)) {
+            slots = slotRows.map(r => ({
+              id: r.id,
+              name: r.name,
+              dailyCost: Number(r.daily_cost) || 0
+            }));
+            try { localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots)); } catch (e) {}
+          }
+
+          // 2. If admin, load freelancer directory from profiles (always real UUIDs)
+          if (user.role === 'admin') {
+            const { data: profRows } = await supabaseClient.from('profiles').select('*');
+            if (Array.isArray(profRows) && profRows.length > 0) {
+              const freelancers = profRows.filter(p => p.role !== 'admin');
+              const list = freelancers.length > 0 ? freelancers : profRows;
+              freelancerDirectory = list.map(p => ({ id: p.id, name: p.name }));
+            } else {
+              freelancerDirectory = [{ id: user.id, name: user.name }];
+            }
+            const sel = document.getElementById('adminFreelancerSelect');
+            sel.innerHTML = freelancerDirectory.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+            if (!freelancerDirectory.some(f => f.id === activeFreelancerId)) {
+              activeFreelancerId = freelancerDirectory[0].id;
+            }
+            sel.value = activeFreelancerId;
+          } else {
+            activeFreelancerId = user.id;
+          }
+
+          // 3. Load payroll records from cloud
+          const { data: recRows, error: recErr } = await supabaseClient.from('payroll_records').select('*');
+          if (recErr) {
+            showToast('서버 데이터 조회 오류: ' + recErr.message);
+            return;
+          }
+          if (Array.isArray(recRows)) {
+            const grouped = {};
+            grouped[activeFreelancerId] = createEmptyMonthsMap();
+            recRows.forEach(r => {
+              const uidKey = r.user_id;
+              const mKey = r.month || currentMonth;
+              if (mKey < '2026-11') return;
+              if (!grouped[uidKey]) {
+                grouped[uidKey] = createEmptyMonthsMap();
+              }
+              if (!grouped[uidKey][mKey]) grouped[uidKey][mKey] = [];
+              const parsed = parseProductName(r.product_name || '');
+              const validItems = parsed.items.filter(it => it.slot && it.days !== null);
+              grouped[uidKey][mKey].push({
+                id: r.id,
+                openDate: r.open_date || '',
+                payDate: r.pay_date || '',
+                client: r.client || '',
+                status: r.status || '오픈',
+                slotItems: validItems.length > 0 ? validItems.map(it => ({ slotId: it.slot.id, days: it.days })) : (r.slot_id ? [{ slotId: r.slot_id, days: Number(r.days) || 0 }] : []),
+                slotId: r.slot_id || '',
+                days: Number(r.days) || 0,
+                productName: r.product_name || '',
+                invoice: !!r.invoice,
+                paid: !!r.paid,
+                contract: Number(r.contract) || 0,
+                resaleCost: Number(r.resale_cost) || 0,
+                workCost: Number(r.work_cost) || 0,
+                memo: r.memo || ''
+              });
+            });
+            userData = grouped;
+            try {
+              localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots));
+              localStorage.setItem(STORAGE_KEY_USER_DATA, JSON.stringify(userData));
+            } catch (e) {}
+          }
+
+          renderSlots();
+          renderTable();
+        } catch (err) {
+          showToast('서버 동기화 중 오류가 발생했습니다.');
+        }
+      }
+
+      function enterAppWithUser(user) {
+        currentUser = user;
+        if (supabaseClient) {
+          try {
+            const s = localStorage.getItem(STORAGE_KEY_SLOTS);
+            slots = s ? JSON.parse(s) : [];
+          } catch (e) {
+            slots = [];
+          }
+          userData = { [user.id]: createEmptyMonthsMap() };
+          if (currentMonth < '2026-11') currentMonth = '2026-11';
+          activeYear = currentMonth.slice(0, 4);
+        } else {
+          loadLocalData();
+        }
+
+        if (user.role === 'admin') {
+          document.getElementById('currentUserBadge').textContent = `${user.name} · 관리자`;
+          document.getElementById('adminFreelancerBox').classList.remove('hidden');
+          document.getElementById('freelancerNameBox').classList.add('hidden');
+          const sel = document.getElementById('adminFreelancerSelect');
+          sel.innerHTML = freelancerDirectory.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+          if (!freelancerDirectory.some(f => f.id === activeFreelancerId)) {
+            activeFreelancerId = freelancerDirectory[0].id;
+          }
+          sel.value = activeFreelancerId;
+        } else {
+          activeFreelancerId = user.id;
+          document.getElementById('currentUserBadge').textContent = `${user.name} · 프리랜서`;
+          document.getElementById('adminFreelancerBox').classList.add('hidden');
+          document.getElementById('freelancerNameBox').classList.remove('hidden');
+          const nameInput = document.getElementById('freelancerName');
+          nameInput.value = user.name;
+          nameInput.readOnly = true;
+        }
+
+        document.getElementById('settlementMonth').value = currentMonth;
+        document.getElementById('loginView').classList.add('hidden');
+        document.getElementById('appView').classList.remove('hidden');
+
+        saveState();
+        resetEntryForm();
+        renderSlots();
+        renderTable();
+        if (supabaseClient) {
+          loadRemoteDataFromSupabase(user);
+        }
+      }
+
+      function logoutUser() {
+        if (supabaseClient) {
+          try { supabaseClient.auth.signOut(); } catch (e) {}
+        }
+        currentUser = null;
+        try { localStorage.removeItem(STORAGE_KEY_SESSION); } catch (e) {}
+        document.getElementById('appView').classList.add('hidden');
+        document.getElementById('loginView').classList.remove('hidden');
+        document.getElementById('loginErrorBox').classList.add('hidden');
+        document.getElementById('loginPassword').value = '';
+        showToast('로그아웃되었습니다.');
+      }
+
+      // Calculation Logic
+      function calcRow(entry) {
+        const contract = Number(entry.contract) || 0;
+        const vatIncluded = entry.invoice ? Math.round(contract * 1.1) : contract;
+        const resaleCost = Number(entry.resaleCost) || 0;
+        const workCost = Number(entry.workCost) || 0;
+        const totalCost = resaleCost + workCost;
+        const netProfit = (contract === 0 && totalCost < 0) ? totalCost : (contract - totalCost);
+        const incentiveGross = Math.round(netProfit * 0.5);
+        const tax33 = Math.round(incentiveGross * 0.033);
+        const finalPayout = incentiveGross - tax33;
+        return { contract, vatIncluded, resaleCost, workCost, totalCost, netProfit, incentiveGross, tax33, finalPayout };
+      }
+
+      // Render Year & Month Archive Tabs (2026-11 ~ 2030-12)
+      function renderMonthTabs() {
+        const yearContainer = document.getElementById('yearTabsContainer');
+        const monthContainer = document.getElementById('monthTabsContainer');
+        const map = getTargetMonthMap();
+        const allKeys = Object.keys(map).filter(ym => ym >= '2026-11').sort();
+        const years = [...new Set(allKeys.map(ym => ym.slice(0, 4)))];
+        if (!years.includes(activeYear)) activeYear = years[0] || '2026';
+
+        yearContainer.innerHTML = years.map(yr => {
+          const isYrActive = yr === activeYear;
+          const yrCount = allKeys.filter(ym => ym.startsWith(yr)).reduce((acc, ym) => acc + (map[ym] || []).length, 0);
+          const cls = isYrActive
+            ? 'bg-slate-900 text-white border-slate-900'
+            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100';
+          return `
+            <button type="button" data-year="${yr}" class="px-2.5 py-1 text-xs font-bold rounded-lg border transition ${cls}">
+              ${yr}년 <span class="opacity-75 font-normal">(${yrCount})</span>
+            </button>
+          `;
+        }).join('');
+
+        const yearMonths = allKeys.filter(ym => ym.startsWith(activeYear));
+        monthContainer.innerHTML = yearMonths.map(ym => {
+          const count = (map[ym] || []).length;
+          const isActive = ym === currentMonth;
+          const mLabel = Number(ym.split('-')[1]) + '월';
+          const activeCls = isActive
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100';
+          return `
+            <button type="button" data-month="${ym}" class="px-3 py-1 text-xs font-semibold rounded-lg border transition ${activeCls}">
+              ${mLabel} <span class="opacity-80 font-normal">(${count})</span>
+            </button>
+          `;
+        }).join('');
+      }
+
+      // Render Top Unpaid Table
+      function renderUnpaidTable() {
+        const entries = getCurrentEntries();
+        const getUnpaidDateKey = (e) => {
+          const dOpen = (e.openDate && /^\d{4}-\d{2}-\d{2}$/.test(e.openDate)) ? e.openDate : '';
+          const dPay = (e.payDate && /^\d{4}-\d{2}-\d{2}$/.test(e.payDate)) ? e.payDate : '';
+          return dOpen || dPay || '';
+        };
+        const unpaid = entries.filter(e => !e.paid).sort((a, b) => {
+          const da = getUnpaidDateKey(a);
+          const db = getUnpaidDateKey(b);
+          if (da !== db) {
+            if (!da) return 1;
+            if (!db) return -1;
+            return db.localeCompare(da);
+          }
+          return String(b.id || '').localeCompare(String(a.id || ''));
+        });
+        const tbody = document.getElementById('unpaidTableBody');
+        document.getElementById('unpaidCountBadge').textContent = unpaid.length + '건';
+
+        let unpaidVatSum = 0;
+        if (unpaid.length === 0) {
+          document.getElementById('unpaidTotalAmount').textContent = '0원';
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" class="py-4 text-center text-xs font-medium text-emerald-600 bg-emerald-50/30">
+                ✓ ${formatMonthLabel(currentMonth)} 광고주 입금이 모두 완료되었습니다.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = unpaid.map(e => {
+          const c = calcRow(e);
+          unpaidVatSum += c.vatIncluded;
+          const statusBadge =
+            e.status === '오픈' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+            e.status === '중단' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+            e.status === '이월' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+            'bg-rose-50 text-rose-700 border-rose-200';
+
+          return `
+            <tr class="hover:bg-rose-50/30 transition">
+              <td class="py-2 px-3 tabular-nums text-slate-600 whitespace-nowrap">${(e.payDate && e.payDate !== '미정' && e.payDate !== 'X') ? escapeHtml(e.payDate) : '<span class="text-slate-400 font-medium">X</span>'}</td>
+              <td class="py-2 px-4 font-semibold text-slate-800 whitespace-nowrap">${escapeHtml(e.client)}</td>
+              <td class="py-2 px-3 text-slate-700">${escapeHtml(e.productName)}</td>
+              <td class="py-2 px-3 text-center">
+                <span class="inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border ${statusBadge}">${escapeHtml(e.status)}</span>
+              </td>
+              <td class="py-2 px-3 text-center">
+                <span class="text-[11px] font-medium ${e.invoice ? 'text-indigo-600' : 'text-slate-400'}">${e.invoice ? '발행' : '미발행'}</span>
+              </td>
+              <td class="py-2 px-3 text-right tabular-nums font-bold text-rose-700 whitespace-nowrap">${fmt(c.vatIncluded)}</td>
+              <td class="py-2 px-3 text-center no-print">
+                <button type="button" data-action="mark-paid" data-id="${e.id}" class="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition">
+                  입금확인
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        document.getElementById('unpaidTotalAmount').textContent = fmt(unpaidVatSum);
+      }
+
+      function buildSlotOptionsHtml(selectedId = '') {
+        return '<option value="">-- 직접 입력 --</option>' + slots.map(s =>
+          `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${escapeHtml(s.name)} (1일 ${fmt(s.dailyCost)})</option>`
+        ).join('');
+      }
+
+      function renderSlotItemsRows(items) {
+        const container = document.getElementById('slotItemsContainer');
+        const list = (Array.isArray(items) && items.length > 0) ? items : [{ slotId: '', qty: 1, days: 10 }];
+        container.innerHTML = list.map((item, idx) => {
+          const slot = slots.find(s => s.id === item.slotId);
+          const qty = Math.max(1, Number(item.qty) || 1);
+          const days = Number(item.days) || 0;
+          const sub = slot ? slot.dailyCost * qty * days : 0;
+          return `
+            <div class="slot-item-row flex flex-wrap sm:flex-nowrap items-center gap-2 bg-slate-50/70 border border-slate-200 rounded-lg p-1.5" data-row-idx="${idx}">
+              <select class="slot-item-select flex-1 min-w-[130px] px-2.5 py-1.5 text-xs border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                ${buildSlotOptionsHtml(item.slotId || '')}
+              </select>
+              <div class="flex items-center gap-1">
+                <input type="number" min="1" step="1" value="${qty}" class="slot-item-qty w-16 px-2 py-1.5 text-xs border border-slate-300 rounded-md tabular-nums bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" title="수량" />
+                <span class="text-[11px] text-slate-500">개</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <input type="number" min="0" step="1" value="${days}" class="slot-item-days w-16 px-2 py-1.5 text-xs border border-slate-300 rounded-md tabular-nums bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" title="오픈 일수" />
+                <span class="text-[11px] text-slate-500">일</span>
+              </div>
+              <span class="slot-item-sub text-[11px] font-semibold text-indigo-600 tabular-nums min-w-[70px] text-right">${slot ? fmt(sub) : '-'}</span>
+              <button type="button" class="slot-item-remove px-2 py-1 text-[11px] font-medium rounded bg-rose-50 text-rose-600 hover:bg-rose-100 transition ${list.length <= 1 ? 'opacity-40 cursor-not-allowed' : ''}" ${list.length <= 1 ? 'disabled' : ''} title="슬롯 행 삭제">
+                삭제
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function getSlotItemsFromDom() {
+        const rows = [...document.querySelectorAll('#slotItemsContainer .slot-item-row')];
+        return rows.map(row => ({
+          slotId: row.querySelector('.slot-item-select').value,
+          qty: Math.max(1, Number(row.querySelector('.slot-item-qty').value) || 1),
+          days: Number(row.querySelector('.slot-item-days').value) || 0
+        }));
+      }
+
+      // Render Slots
+      function renderSlots() {
+        const container = document.getElementById('slotListContainer');
+        document.getElementById('slotCountBadge').textContent = slots.length + '개';
+
+        document.querySelectorAll('#slotItemsContainer .slot-item-select').forEach(sel => {
+          const prev = sel.value;
+          sel.innerHTML = buildSlotOptionsHtml(prev);
+        });
+
+        if (slots.length === 0) {
+          container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">학습된 슬롯이 없습니다. 위에서 슬롯을 추가해 주세요.</div>';
+          return;
+        }
+
+        container.innerHTML = slots.map(s => `
+          <div class="px-4 py-2.5 flex items-center justify-between gap-2 hover:bg-slate-50 transition">
+            <div class="min-w-0">
+              <div class="text-xs font-semibold text-slate-800 truncate">${escapeHtml(s.name)}</div>
+              <div class="text-[11px] text-slate-500 tabular-nums">1일 기준 리셀: <span class="font-semibold text-indigo-600">${fmt(s.dailyCost)}</span></div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" data-action="use-slot" data-id="${s.id}" class="px-2 py-1 text-[11px] font-medium rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition">선택</button>
+              <button type="button" data-action="edit-slot" data-id="${s.id}" class="px-2 py-1 text-[11px] font-medium rounded bg-slate-100 text-slate-600 hover:bg-slate-200 transition">수정</button>
+              <button type="button" data-action="delete-slot" data-id="${s.id}" class="px-2 py-1 text-[11px] font-medium rounded bg-rose-50 text-rose-600 hover:bg-rose-100 transition">삭제</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Filter entries
+      function getFilteredEntries() {
+        const entries = getCurrentEntries();
+        const q = document.getElementById('searchQuery').value.trim().toLowerCase();
+        const st = document.getElementById('filterStatus').value;
+        const inv = document.getElementById('filterInvoice').value;
+        const paid = document.getElementById('filterPaid').value;
+
+        const filtered = entries.filter(e => {
+          if (st !== 'ALL' && e.status !== st) return false;
+          if (inv === 'Y' && !e.invoice) return false;
+          if (inv === 'N' && e.invoice) return false;
+          if (paid === 'Y' && !e.paid) return false;
+          if (paid === 'N' && e.paid) return false;
+          if (q) {
+            const hay = `${e.client} ${e.productName} ${e.memo || ''}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+
+        const getDateKey = (e) => {
+          const dOpen = (e.openDate && /^\d{4}-\d{2}-\d{2}$/.test(e.openDate)) ? e.openDate : '';
+          const dPay = (e.payDate && /^\d{4}-\d{2}-\d{2}$/.test(e.payDate)) ? e.payDate : '';
+          return dOpen || dPay || '';
+        };
+
+        return [...filtered].sort((a, b) => {
+          const da = getDateKey(a);
+          const db = getDateKey(b);
+          if (da !== db) {
+            if (!da) return 1;
+            if (!db) return -1;
+            return db.localeCompare(da);
+          }
+          return String(b.id || '').localeCompare(String(a.id || ''));
+        });
+      }
+
+      // Render Table & KPIs
+      function renderTable() {
+        const filtered = getFilteredEntries();
+        const tbody = document.getElementById('payrollTableBody');
+        const tfoot = document.getElementById('payrollTableFoot');
+        document.getElementById('visibleCountText').textContent = filtered.length + '건';
+        document.getElementById('kpiMonthBadge').textContent = `${formatMonthLabel(currentMonth)} 실지급`;
+
+        let sumContract = 0;
+        let sumVat = 0;
+        let sumCost = 0;
+        let sumNet = 0;
+        let sumIncen = 0;
+        let sumTax = 0;
+        let sumFinal = 0;
+        let invoiceCount = 0;
+        let paidCount = 0;
+
+        if (filtered.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="17" class="py-12 text-center text-xs text-slate-400">
+                ${formatMonthLabel(currentMonth)} 정산 내역이 없습니다. 상단 입력 폼에서 내역을 추가해 주세요.
+              </td>
+            </tr>
+          `;
+        } else {
+          tbody.innerHTML = filtered.map(e => {
+            const c = calcRow(e);
+            sumContract += c.contract;
+            sumVat += c.vatIncluded;
+            sumCost += c.totalCost;
+            sumNet += c.netProfit;
+            sumIncen += c.incentiveGross;
+            sumTax += c.tax33;
+            sumFinal += c.finalPayout;
+            if (e.invoice) invoiceCount++;
+            if (e.paid) paidCount++;
+
+            const statusBadge =
+              e.status === '오픈' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+              e.status === '중단' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+              e.status === '이월' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+              'bg-rose-50 text-rose-700 border-rose-200';
+
+            const negClass = c.finalPayout < 0 ? 'text-rose-600' : 'text-indigo-800';
+
+            return `
+              <tr class="hover:bg-slate-50/80 transition">
+                <td class="py-2.5 px-3 text-center no-print">
+                  <input type="checkbox" class="entry-select-cb w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 cursor-pointer" data-id="${e.id}" />
+                </td>
+                <td class="py-2.5 px-3 tabular-nums text-slate-600 whitespace-nowrap">${(e.openDate && e.openDate !== '전월' && e.openDate !== '미정' && e.openDate !== 'X') ? escapeHtml(e.openDate) : '<span class="text-slate-400 font-medium">X</span>'}</td>
+                <td class="py-2.5 px-3 tabular-nums text-slate-600 whitespace-nowrap">${(e.payDate && e.payDate !== '미정' && e.payDate !== 'X') ? escapeHtml(e.payDate) : '<span class="text-slate-400 font-medium">X</span>'}</td>
+                <td class="py-2.5 px-4 font-semibold text-slate-800 whitespace-nowrap">${escapeHtml(e.client)}</td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                  <span class="inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full border ${statusBadge}">${escapeHtml(e.status)}</span>
+                </td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                  <span class="text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">50%</span>
+                </td>
+                <td class="py-2.5 px-3 text-slate-700 max-w-[230px]">
+                  <div class="font-medium truncate" title="${escapeHtml(e.productName)}">${escapeHtml(e.productName)}</div>
+                  ${e.days ? `<div class="text-[10px] text-slate-400">오픈 ${e.days}일 · 리셀 ${fmt(c.resaleCost)}${c.workCost ? ` + 작업 ${fmt(c.workCost)}` : ''}</div>` : ''}
+                </td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                  <button type="button" data-action="toggle-invoice" data-id="${e.id}" class="px-2.5 py-0.5 text-[11px] font-semibold rounded-full border transition cursor-pointer ${e.invoice ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'}" title="클릭하여 발행/미발행 전환">
+                    ${e.invoice ? '발행' : '미발행'}
+                  </button>
+                </td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                  <button type="button" data-action="toggle-paid" data-id="${e.id}" class="px-2.5 py-0.5 text-[11px] font-semibold rounded-full border transition cursor-pointer ${e.paid ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'}" title="클릭하여 입금/미입금 전환">
+                    ${e.paid ? '입금' : '미입금'}
+                  </button>
+                </td>
+                <td class="py-2.5 px-3 text-right tabular-nums font-medium text-slate-800 whitespace-nowrap">${fmt(c.contract)}</td>
+                <td class="py-2.5 px-3 text-right tabular-nums text-slate-500 whitespace-nowrap">${e.invoice ? fmt(c.vatIncluded) : '<span class="text-slate-300">-</span>'}</td>
+                <td class="py-2.5 px-3 text-right tabular-nums text-slate-700 whitespace-nowrap">${fmt(c.totalCost)}</td>
+                <td class="py-2.5 px-3 text-right tabular-nums font-medium text-slate-800 whitespace-nowrap">${fmt(c.netProfit)}</td>
+                <td class="py-2.5 px-3 text-right tabular-nums font-semibold text-indigo-700 whitespace-nowrap">${fmt(c.incentiveGross)}</td>
+                <td class="py-2.5 px-3 text-right tabular-nums font-bold ${negClass} bg-indigo-50/40 whitespace-nowrap">${fmt(c.finalPayout)}</td>
+                <td class="py-2.5 px-3 text-slate-600 max-w-[160px] truncate" title="${escapeHtml(e.memo || '')}">${e.memo ? escapeHtml(e.memo) : '<span class="text-slate-300">-</span>'}</td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap no-print">
+                  <button type="button" data-action="edit-entry" data-id="${e.id}" class="px-2.5 py-1 text-[11px] font-medium rounded bg-slate-100 text-slate-600 hover:bg-slate-200">수정</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        tfoot.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-3 px-3 text-right text-slate-600">합계 (${filtered.length}건)</td>
+            <td class="py-3 px-3 text-right tabular-nums whitespace-nowrap">${fmt(sumContract)}</td>
+            <td class="py-3 px-3 text-right tabular-nums text-slate-600 whitespace-nowrap">${fmt(sumVat)}</td>
+            <td class="py-3 px-3 text-right tabular-nums whitespace-nowrap">${fmt(sumCost)}</td>
+            <td class="py-3 px-3 text-right tabular-nums whitespace-nowrap">${fmt(sumNet)}</td>
+            <td class="py-3 px-3 text-right tabular-nums text-indigo-700 whitespace-nowrap">${fmt(sumIncen)}</td>
+            <td class="py-3 px-3 text-right tabular-nums text-indigo-800 bg-indigo-50/70 whitespace-nowrap">${fmt(sumFinal)}</td>
+            <td></td>
+            <td class="no-print"></td>
+          </tr>
+        `;
+
+        // Update KPI cards
+        document.getElementById('kpiCountBadge').textContent = filtered.length + '건';
+        document.getElementById('kpiContract').textContent = fmt(sumContract);
+        document.getElementById('kpiVatTotal').textContent = fmt(sumVat);
+        document.getElementById('kpiCost').textContent = fmt(sumCost);
+        document.getElementById('kpiNetProfit').textContent = fmt(sumNet);
+        document.getElementById('kpiInvoiceCount').textContent = `${invoiceCount}/${filtered.length}건`;
+        document.getElementById('kpiPaidCount').textContent = `${paidCount}/${filtered.length}건`;
+        document.getElementById('kpiIncentiveGross').textContent = fmt(sumIncen);
+        document.getElementById('kpiTax').textContent = (sumTax >= 0 ? '-' : '') + fmt(Math.abs(sumTax));
+        document.getElementById('kpiFinalPayout').textContent = fmt(sumFinal);
+
+        const selectAllCb = document.getElementById('selectAllEntries');
+        if (selectAllCb) selectAllCb.checked = false;
+        renderUnpaidTable();
+        renderMonthTabs();
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      // Update live form preview
+      function updateFormPreview() {
+        const contract = Number(document.getElementById('fContract').value) || 0;
+        const resale = Number(document.getElementById('fResaleCost').value) || 0;
+        const work = Number(document.getElementById('fWorkCost').value) || 0;
+        const invoice = document.getElementById('fInvoice').checked;
+        const res = calcRow({ contract, resaleCost: resale, workCost: work, invoice });
+
+        document.getElementById('fVatAmount').value = invoice ? fmt(res.vatIncluded) : '-';
+        document.getElementById('previewNet').textContent = fmt(res.netProfit);
+        document.getElementById('previewIncen').textContent = fmt(res.incentiveGross);
+        document.getElementById('previewFinal').textContent = fmt(res.finalPayout);
+      }
+
+      // Parse single or multiple slot+days segments from productName text
+      function parseProductName(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return { slot: null, days: null, items: [] };
+
+        const sortedSlots = [...slots].sort((a, b) => b.name.length - a.name.length);
+        const parts = raw.split(/[+,/&\r\n]+/).map(p => p.trim()).filter(Boolean);
+        const items = [];
+
+        parts.forEach(part => {
+          const norm = part.toLowerCase().replace(/\s+/g, '');
+          const matchedSlot = sortedSlots.find(s => {
+            const sNorm = String(s.name || '').toLowerCase().replace(/\s+/g, '');
+            return sNorm && norm.includes(sNorm);
+          }) || null;
+          const qtyMatch = part.match(/(\d+)\s*개/);
+          const matchedQty = qtyMatch ? Math.max(1, Number(qtyMatch[1])) : 1;
+          const dayMatch = part.match(/(\d+)\s*일/);
+          const matchedDays = dayMatch ? Number(dayMatch[1]) : null;
+          if (matchedSlot) {
+            items.push({ slot: matchedSlot, qty: matchedQty, days: matchedDays });
+          }
+        });
+
+        const first = items[0] || { slot: null, days: null };
+        return { slot: first.slot, days: first.days, items };
+      }
+
+      function setParseBadge(type, msg) {
+        const badge = document.getElementById('productParseBadge');
+        if (!msg) {
+          badge.classList.add('hidden');
+          badge.textContent = '';
+          return;
+        }
+        badge.className = 'text-[11px] mt-1 font-medium ' + (
+          type === 'success' ? 'text-emerald-600' :
+          type === 'warn' ? 'text-amber-600' : 'text-slate-500'
+        );
+        badge.textContent = msg;
+      }
+
+      function autoRecognizeFromProductName(forceUpdateResale = false) {
+        const text = document.getElementById('fProductName').value;
+        const { items } = parseProductName(text);
+        const completeItems = items.filter(it => it.slot && it.days !== null);
+
+        if (completeItems.length > 0) {
+          renderSlotItemsRows(completeItems.map(it => ({ slotId: it.slot.id, qty: it.qty || 1, days: it.days })));
+          const status = document.getElementById('fStatus').value;
+          const totalAuto = completeItems.reduce((acc, it) => acc + it.slot.dailyCost * (it.qty || 1) * it.days, 0);
+          const summary = completeItems.map(it => `${it.slot.name}${(it.qty > 1 || status === '중단') ? ` ${it.qty || 1}개` : ''} ${it.days}일`).join(' + ');
+
+          if (status === '중단') {
+            document.getElementById('fContract').value = totalAuto;
+            document.getElementById('fResaleCost').value = 0;
+            setParseBadge('success', `✓ 중단 자동계산: ${summary} → 개발사 환불금(계약금) ${fmt(totalAuto)} / 리셀 0원`);
+          } else {
+            if (!isResaleManuallyEdited || forceUpdateResale) {
+              const contractVal = Number(document.getElementById('fContract').value) || 0;
+              const sign = (status === '환불' || contractVal < 0) ? -1 : 1;
+              document.getElementById('fResaleCost').value = sign * totalAuto;
+            }
+            const currentResale = Number(document.getElementById('fResaleCost').value) || 0;
+            setParseBadge('success', `✓ 자동인식: ${summary} → 리셀 ${fmt(currentResale)}`);
+          }
+        } else if (items.length > 0 && items[0].slot) {
+          renderSlotItemsRows([{ slotId: items[0].slot.id, qty: items[0].qty || 1, days: 10 }]);
+          setParseBadge('warn', `슬롯 인식됨(${items[0].slot.name}) — 오픈일수(예: 10일)를 입력하면 리셀이 자동 계산됩니다.`);
+        } else {
+          setParseBadge(null, '');
+        }
+        updateFormPreview();
+      }
+
+      function applySlotItemsToForm() {
+        const items = getSlotItemsFromDom();
+        const status = document.getElementById('fStatus').value;
+        const contractVal = Number(document.getElementById('fContract').value) || 0;
+        const sign = (status === '환불' || contractVal < 0) ? -1 : 1;
+
+        let totalResale = 0;
+        const nameParts = [];
+        const rows = document.querySelectorAll('#slotItemsContainer .slot-item-row');
+
+        items.forEach((item, idx) => {
+          const slot = slots.find(s => s.id === item.slotId);
+          const subEl = rows[idx] && rows[idx].querySelector('.slot-item-sub');
+          const qty = Math.max(1, Number(item.qty) || 1);
+          if (slot) {
+            const sub = slot.dailyCost * qty * item.days;
+            totalResale += sub;
+            nameParts.push(`${slot.name}${(qty > 1 || status === '중단') ? ` ${qty}개` : ''} ${item.days}일`);
+            if (subEl) subEl.textContent = fmt(sub);
+          } else if (subEl) {
+            subEl.textContent = '-';
+          }
+        });
+
+        if (nameParts.length > 0) {
+          if (status === '중단') {
+            document.getElementById('fProductName').value = `${nameParts.join(' + ')} 개발사 환불금`;
+            document.getElementById('fContract').value = totalResale;
+            document.getElementById('fResaleCost').value = 0;
+            isResaleManuallyEdited = false;
+            setParseBadge('success', `✓ 중단 자동계산: ${nameParts.join(' + ')} → 개발사 환불금(계약금) ${fmt(totalResale)} / 리셀 0원`);
+          } else {
+            const suffix = status === '환불' ? '환불' : '오픈';
+            document.getElementById('fProductName').value = `${nameParts.join(' + ')} ${suffix}`;
+            const finalResale = sign * totalResale;
+            document.getElementById('fResaleCost').value = finalResale;
+            isResaleManuallyEdited = false;
+            setParseBadge('success', `✓ 자동인식: ${nameParts.join(' + ')} → 리셀 ${fmt(finalResale)}`);
+          }
+        } else {
+          setParseBadge(null, '');
+        }
+        updateFormPreview();
+      }
+
+      function resetEntryForm() {
+        document.getElementById('editingEntryId').value = '';
+        document.getElementById('entryForm').reset();
+        document.getElementById('fOpenDate').value = getTodayYmd();
+        document.getElementById('fPayDate').value = '';
+        document.getElementById('fOpenDate').disabled = false;
+        document.getElementById('fPayDate').disabled = true;
+        document.getElementById('fOpenDateTbd').checked = false;
+        document.getElementById('fPayDateTbd').checked = true;
+        document.getElementById('fInvoice').checked = true;
+        document.getElementById('fMemo').value = '';
+        renderSlotItemsRows([{ slotId: '', qty: 1, days: 10 }]);
+        document.getElementById('fResaleCost').value = 0;
+        document.getElementById('fWorkCost').value = 0;
+        isResaleManuallyEdited = false;
+        setParseBadge(null, '');
+        document.getElementById('entryFormTitleText').textContent = '정산 내역 등록';
+        document.getElementById('btnSaveEntry').textContent = '+ 정산 내역 추가';
+        document.getElementById('btnCancelEntryEdit').classList.add('hidden');
+        updateFormPreview();
+      }
+
+      function resetSlotForm() {
+        document.getElementById('editingSlotId').value = '';
+        document.getElementById('slotForm').reset();
+        document.getElementById('btnSaveSlot').textContent = '등록하기';
+        document.getElementById('btnCancelSlotEdit').classList.add('hidden');
+      }
+
+      function switchMonth(ym) {
+        if (!ym) return;
+        if (ym < '2026-11') {
+          showToast('2026년 11월 이후 정산 내역만 관리됩니다.');
+          document.getElementById('settlementMonth').value = currentMonth;
+          return;
+        }
+        currentMonth = ym;
+        activeYear = ym.slice(0, 4);
+        const map = getTargetMonthMap();
+        if (!map[currentMonth]) map[currentMonth] = [];
+        document.getElementById('settlementMonth').value = currentMonth;
+        saveState();
+        resetEntryForm();
+        renderTable();
+      }
+
+      // CSV Export
+      function exportCsv() {
+        const filtered = getFilteredEntries();
+        const headers = [
+          '오픈날짜', '결제날짜', '업체명', '구분', '인센율',
+          '상품명', '계산서유무', '광고주입금', '계약금액(공급가)', 'VAT포함금액',
+          '리셀및작업비용', '순수익', '인센50%금액', '3.3%제외실지급액', '메모'
+        ];
+        const rows = filtered.map(e => {
+          const c = calcRow(e);
+          return [
+            (e.openDate && e.openDate !== '전월' && e.openDate !== '미정' && e.openDate !== 'X') ? e.openDate : 'X',
+            (e.payDate && e.payDate !== '미정' && e.payDate !== 'X') ? e.payDate : 'X',
+            `"${String(e.client).replace(/"/g, '""')}"`,
+            e.status,
+            '50%',
+            `"${String(e.productName).replace(/"/g, '""')}"`,
+            e.invoice ? 'Y' : 'N',
+            e.paid ? '입금완료' : '미입금',
+            c.contract,
+            c.vatIncluded,
+            c.totalCost,
+            c.netProfit,
+            c.incentiveGross,
+            c.finalPayout,
+            `"${String(e.memo || '').replace(/"/g, '""')}"`
+          ].join(',');
+        });
+        const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `급여현황_${activeFreelancerId}_${currentMonth}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('엑셀(CSV) 파일이 다운로드되었습니다.');
+      }
+
+      // Event Listeners
+      document.addEventListener('DOMContentLoaded', () => {
+        initSupabaseClient();
+
+        // Auto-restore session if previously logged in
+        (async () => {
+          try {
+            if (supabaseClient) {
+              const { data: sessData } = await supabaseClient.auth.getSession();
+              if (sessData && sessData.session && sessData.session.user) {
+                const u = sessData.session.user;
+                const { data: prof } = await supabaseClient.from('profiles').select('*').eq('id', u.id).single();
+                const restoredUser = {
+                  id: u.id,
+                  name: (prof && prof.name) || (u.email ? u.email.split('@')[0] : '사용자'),
+                  role: (prof && prof.role) || 'freelancer',
+                  email: u.email || ''
+                };
+                const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+                if (savedSession) {
+                  const parsed = JSON.parse(savedSession);
+                  if (parsed && parsed.currentMonth && parsed.currentMonth >= '2026-11') {
+                    currentMonth = parsed.currentMonth;
+                  }
+                  if (parsed && parsed.activeFreelancerId && restoredUser.role === 'admin') {
+                    activeFreelancerId = parsed.activeFreelancerId;
+                  }
+                }
+                enterAppWithUser(restoredUser);
+              }
+              return;
+            }
+            const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+            if (savedSession) {
+              const parsed = JSON.parse(savedSession);
+              if (parsed && parsed.currentUser) {
+                activeFreelancerId = parsed.activeFreelancerId || parsed.currentUser.id;
+                currentMonth = parsed.currentMonth || '2026-11';
+                enterAppWithUser(parsed.currentUser);
+              }
+            }
+          } catch (e) {}
+        })();
+
+        // Demo quick-login buttons
+        document.getElementById('demoLoginSection').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-demo-user]');
+          if (!btn) return;
+          const user = DEMO_USERS[btn.dataset.demoUser];
+          if (user) {
+            enterAppWithUser(user);
+            showToast(`${user.name}(으)로 로그인되었습니다.`);
+          }
+        });
+
+        // Standard Login Form
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = document.getElementById('loginEmail').value.trim();
+          const password = document.getElementById('loginPassword').value;
+          const errBox = document.getElementById('loginErrorBox');
+          errBox.classList.add('hidden');
+
+          if (supabaseClient) {
+            try {
+              const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+              if (error) throw error;
+              const uidVal = data.user.id;
+              const { data: prof } = await supabaseClient.from('profiles').select('*').eq('id', uidVal).single();
+              const loggedUser = {
+                id: uidVal,
+                name: (prof && prof.name) || email.split('@')[0],
+                role: (prof && prof.role) || 'freelancer',
+                email
+              };
+              enterAppWithUser(loggedUser);
+              showToast(`${loggedUser.name}님 환영합니다.`);
+            } catch (err) {
+              errBox.textContent = '로그인 실패: 아이디 또는 비밀번호를 확인해 주세요.';
+              errBox.classList.remove('hidden');
+            }
+          } else {
+            // Demo mode credential check fallback
+            const matched = Object.values(DEMO_USERS).find(u => u.email === email || u.id === email);
+            if (matched) {
+              enterAppWithUser(matched);
+              showToast(`${matched.name}(으)로 로그인되었습니다.`);
+            } else {
+              errBox.textContent = '데모 모드에서는 하단 빠른 로그인 버튼을 이용하거나, admin@company.com / seoyeon@company.com / junho@company.com을 입력하세요.';
+              errBox.classList.remove('hidden');
+            }
+          }
+        });
+
+        // Logout
+        document.getElementById('btnLogout').addEventListener('click', logoutUser);
+
+        // Supabase Modal Controls
+        const openSbModal = () => {
+          document.getElementById('sbUrlInput').value = sbConfig.url || '';
+          document.getElementById('sbKeyInput').value = sbConfig.anonKey || '';
+          document.getElementById('supabaseModal').classList.remove('hidden');
+        };
+        const closeSbModal = () => document.getElementById('supabaseModal').classList.add('hidden');
+
+        document.getElementById('btnOpenSupabaseFromApp').addEventListener('click', openSbModal);
+        document.getElementById('btnCloseSupabaseModal').addEventListener('click', closeSbModal);
+        document.getElementById('btnCancelSupabase').addEventListener('click', closeSbModal);
+
+        document.getElementById('btnCopySql').addEventListener('click', () => {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(SUPABASE_SQL_SETUP).catch(() => {});
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = SUPABASE_SQL_SETUP;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          showToast('Supabase 테이블 및 보안규칙(RLS) SQL이 복사되었습니다.');
+        });
+
+        document.getElementById('supabaseConfigForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          sbConfig = {
+            url: document.getElementById('sbUrlInput').value.trim(),
+            anonKey: document.getElementById('sbKeyInput').value.trim()
+          };
+          try { localStorage.setItem(STORAGE_KEY_SB_CONFIG, JSON.stringify(sbConfig)); } catch (err) {}
+          initSupabaseClient();
+          closeSbModal();
+          showToast('Supabase 연동 설정이 저장되었습니다.');
+        });
+
+        document.getElementById('btnResetSupabase').addEventListener('click', () => {
+          sbConfig = { url: '', anonKey: '' };
+          try { localStorage.removeItem(STORAGE_KEY_SB_CONFIG); } catch (err) {}
+          initSupabaseClient();
+          closeSbModal();
+          showToast('데모 모드로 전환되었습니다.');
+        });
+
+        // Admin freelancer switcher
+        document.getElementById('adminFreelancerSelect').addEventListener('change', (e) => {
+          activeFreelancerId = e.target.value;
+          saveState();
+          resetEntryForm();
+          renderTable();
+          showToast(`${e.target.options[e.target.selectedIndex].text} 내역을 조회합니다.`);
+        });
+
+        // Month picker & Save button
+        document.getElementById('settlementMonth').addEventListener('change', (e) => {
+          switchMonth(e.target.value);
+          showToast(`${formatMonthLabel(e.target.value)} 내역으로 전환되었습니다.`);
+        });
+
+        document.getElementById('yearTabsContainer').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-year]');
+          if (!btn) return;
+          activeYear = btn.dataset.year;
+          renderMonthTabs();
+        });
+
+        document.getElementById('monthTabsContainer').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-month]');
+          if (!btn) return;
+          switchMonth(btn.dataset.month);
+        });
+
+        // Date TBD toggles
+        document.getElementById('fOpenDateTbd').addEventListener('change', (e) => {
+          const inp = document.getElementById('fOpenDate');
+          inp.disabled = e.target.checked;
+          if (e.target.checked) inp.value = '';
+        });
+        document.getElementById('fPayDateTbd').addEventListener('change', (e) => {
+          const inp = document.getElementById('fPayDate');
+          inp.disabled = e.target.checked;
+          if (e.target.checked) inp.value = '';
+        });
+
+        document.getElementById('btnSaveMonth').addEventListener('click', async () => {
+          const ok = await saveState(true);
+          renderMonthTabs();
+          if (ok) {
+            showToast(`${formatMonthLabel(currentMonth)} 급여 현황이 서버에 저장되었습니다.`);
+          }
+        });
+
+        // Unpaid top table quick mark-paid
+        document.getElementById('unpaidTableBody').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-action="mark-paid"]');
+          if (!btn) return;
+          const entries = getCurrentEntries();
+          const entry = entries.find(x => x.id === btn.dataset.id);
+          if (entry) {
+            entry.paid = true;
+            if (!entry.payDate || entry.payDate === 'X' || entry.payDate === '미정') {
+              entry.payDate = getTodayYmd();
+            }
+            saveState(true);
+            renderTable();
+            showToast(`'${entry.client}' 입금 완료 (결제일: ${entry.payDate})`);
+          }
+        });
+
+        // Slot form submit
+        document.getElementById('slotForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const id = document.getElementById('editingSlotId').value;
+          const name = document.getElementById('slotNameInput').value.trim();
+          const dailyCost = Number(document.getElementById('slotDailyCostInput').value) || 0;
+          if (!name) return;
+
+          if (id) {
+            const idx = slots.findIndex(s => s.id === id);
+            if (idx !== -1) {
+              slots[idx] = { id, name, dailyCost };
+              showToast(`'${name}' 단가가 수정되었습니다.`);
+            }
+          } else {
+            slots.push({ id: uid('slot'), name, dailyCost });
+            showToast(`'${name}' (1일 ${fmt(dailyCost)}) 학습 완료`);
+          }
+          saveState(true);
+          resetSlotForm();
+          renderSlots();
+        });
+
+        document.getElementById('btnCancelSlotEdit').addEventListener('click', resetSlotForm);
+
+        // Slot list actions
+        document.getElementById('slotListContainer').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-action]');
+          if (!btn) return;
+          const action = btn.dataset.action;
+          const id = btn.dataset.id;
+          const slot = slots.find(s => s.id === id);
+          if (!slot) return;
+
+          if (action === 'use-slot') {
+            const currentItems = getSlotItemsFromDom();
+            const emptyIdx = currentItems.findIndex(it => !it.slotId);
+            if (emptyIdx !== -1) {
+              currentItems[emptyIdx].slotId = slot.id;
+            } else {
+              currentItems.push({ slotId: slot.id, days: 10 });
+            }
+            renderSlotItemsRows(currentItems);
+            applySlotItemsToForm();
+            showToast(`'${slot.name}' 슬롯이 추가되었습니다.`);
+          } else if (action === 'edit-slot') {
+            document.getElementById('editingSlotId').value = slot.id;
+            document.getElementById('slotNameInput').value = slot.name;
+            document.getElementById('slotDailyCostInput').value = slot.dailyCost;
+            document.getElementById('btnSaveSlot').textContent = '단가 수정 저장';
+            document.getElementById('btnCancelSlotEdit').classList.remove('hidden');
+          } else if (action === 'delete-slot') {
+            openConfirm('슬롯 삭제', `'${slot.name}' 학습 단가를 삭제할까요? 기존 정산 내역의 금액은 유지됩니다.`, async () => {
+              slots = slots.filter(s => s.id !== id);
+              if (supabaseClient && currentUser) {
+                try {
+                  const { error: delErr } = await supabaseClient.from('slot_prices').delete().eq('id', id);
+                  if (delErr) showToast('슬롯 삭제 오류: ' + delErr.message);
+                } catch (err) {}
+              }
+              saveState(true);
+              renderSlots();
+              showToast('슬롯이 삭제되었습니다.');
+            });
+          }
+        });
+
+
+        // Sync all slot costs
+        document.getElementById('btnSyncAllSlotCosts').addEventListener('click', () => {
+          const entries = getCurrentEntries();
+          let updated = 0;
+          entries.forEach(entry => {
+            const items = (Array.isArray(entry.slotItems) && entry.slotItems.length > 0)
+              ? entry.slotItems
+              : (entry.slotId ? [{ slotId: entry.slotId, days: entry.days }] : []);
+            let sum = 0;
+            let matchedAny = false;
+            items.forEach(it => {
+              const slot = slots.find(s => s.id === it.slotId);
+              if (slot && it.days) {
+                const q = Math.max(1, Number(it.qty) || 1);
+                sum += slot.dailyCost * q * Number(it.days);
+                matchedAny = true;
+              }
+            });
+            if (matchedAny) {
+              const sign = entry.status === '환불' ? -1 : 1;
+              entry.resaleCost = sign * sum;
+              updated++;
+            }
+          });
+          saveState(true);
+          renderTable();
+          showToast(`${updated}건의 내역에 최신 슬롯 단가가 반영되었습니다.`);
+        });
+
+        // Entry form live calculations & auto-recognition from productName
+        document.getElementById('fProductName').addEventListener('input', () => {
+          isResaleManuallyEdited = false;
+          autoRecognizeFromProductName(true);
+        });
+        document.getElementById('fContract').addEventListener('input', () => {
+          if (document.getElementById('fProductName').value.trim() && !isResaleManuallyEdited) {
+            autoRecognizeFromProductName(true);
+          } else {
+            updateFormPreview();
+          }
+        });
+        document.getElementById('fResaleCost').addEventListener('input', () => {
+          isResaleManuallyEdited = true;
+          updateFormPreview();
+        });
+        document.getElementById('fWorkCost').addEventListener('input', updateFormPreview);
+        document.getElementById('fInvoice').addEventListener('change', updateFormPreview);
+
+        document.getElementById('btnAddSlotItem').addEventListener('click', () => {
+          const items = getSlotItemsFromDom();
+          items.push({ slotId: '', qty: 1, days: 10 });
+          renderSlotItemsRows(items);
+        });
+
+        document.getElementById('slotItemsContainer').addEventListener('change', (e) => {
+          if (e.target.classList.contains('slot-item-select')) {
+            applySlotItemsToForm();
+          }
+        });
+
+        document.getElementById('slotItemsContainer').addEventListener('input', (e) => {
+          if (e.target.classList.contains('slot-item-days') || e.target.classList.contains('slot-item-qty')) {
+            applySlotItemsToForm();
+          }
+        });
+
+        document.getElementById('slotItemsContainer').addEventListener('click', (e) => {
+          const btn = e.target.closest('.slot-item-remove');
+          if (!btn) return;
+          const row = btn.closest('.slot-item-row');
+          const idx = Number(row.dataset.rowIdx);
+          const items = getSlotItemsFromDom();
+          if (items.length <= 1) return;
+          items.splice(idx, 1);
+          renderSlotItemsRows(items);
+          applySlotItemsToForm();
+        });
+
+        document.getElementById('fStatus').addEventListener('change', () => {
+          const items = getSlotItemsFromDom();
+          if (items.some(it => it.slotId)) {
+            applySlotItemsToForm();
+          } else if (document.getElementById('fProductName').value.trim()) {
+            autoRecognizeFromProductName(true);
+          }
+        });
+
+        // Entry form submit
+        document.getElementById('entryForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const entries = getCurrentEntries();
+          const id = document.getElementById('editingEntryId').value;
+          const openTbd = document.getElementById('fOpenDateTbd').checked;
+          const payTbd = document.getElementById('fPayDateTbd').checked;
+          const payload = {
+            id: id || uid('ent'),
+            openDate: openTbd ? '' : document.getElementById('fOpenDate').value,
+            payDate: payTbd ? '' : document.getElementById('fPayDate').value,
+            client: document.getElementById('fClient').value.trim(),
+            status: document.getElementById('fStatus').value,
+            slotItems: getSlotItemsFromDom().filter(it => it.slotId),
+            slotId: (getSlotItemsFromDom().find(it => it.slotId) || {}).slotId || '',
+            days: getSlotItemsFromDom().filter(it => it.slotId).reduce((acc, it) => acc + (Number(it.days) || 0), 0),
+            productName: document.getElementById('fProductName').value.trim(),
+            invoice: document.getElementById('fInvoice').checked,
+            paid: document.getElementById('fPaid').checked,
+            contract: Number(document.getElementById('fContract').value) || 0,
+            resaleCost: Number(document.getElementById('fResaleCost').value) || 0,
+            workCost: Number(document.getElementById('fWorkCost').value) || 0,
+            memo: document.getElementById('fMemo').value.trim()
+          };
+
+          if (id) {
+            const idx = entries.findIndex(x => x.id === id);
+            if (idx !== -1) entries[idx] = payload;
+            showToast('정산 내역이 수정되었습니다.');
+          } else {
+            entries.push(payload);
+            showToast('새 정산 내역이 추가되었습니다.');
+          }
+          saveState(true);
+          resetEntryForm();
+          renderTable();
+        });
+
+        document.getElementById('btnCancelEntryEdit').addEventListener('click', resetEntryForm);
+
+        // Table actions
+        document.getElementById('payrollTableBody').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-action]');
+          if (!btn) return;
+          const entries = getCurrentEntries();
+          const action = btn.dataset.action;
+          const id = btn.dataset.id;
+          const entry = entries.find(x => x.id === id);
+          if (!entry) return;
+
+          if (action === 'toggle-invoice') {
+            entry.invoice = !entry.invoice;
+            saveState(true);
+            renderTable();
+            showToast(entry.invoice ? '계산서 발행으로 변경됨' : '계산서 미발행으로 변경됨');
+            return;
+          }
+
+          if (action === 'toggle-paid') {
+            entry.paid = !entry.paid;
+            if (entry.paid) {
+              if (!entry.payDate || entry.payDate === 'X' || entry.payDate === '미정') {
+                entry.payDate = getTodayYmd();
+              }
+            } else {
+              entry.payDate = '';
+            }
+            saveState(true);
+            renderTable();
+            showToast(entry.paid ? `입금 완료 처리됨 (결제일: ${entry.payDate})` : '미입금으로 변경됨 (결제일: X)');
+            return;
+          }
+
+          if (action === 'edit-entry') {
+            document.getElementById('editingEntryId').value = entry.id;
+            const hasOpen = !!(entry.openDate && entry.openDate !== '미정' && entry.openDate !== '전월' && entry.openDate !== 'X');
+            const hasPay = !!(entry.payDate && entry.payDate !== '미정' && entry.payDate !== 'X');
+            document.getElementById('fOpenDateTbd').checked = !hasOpen;
+            document.getElementById('fOpenDate').disabled = !hasOpen;
+            document.getElementById('fOpenDate').value = hasOpen ? entry.openDate : '';
+            document.getElementById('fPayDateTbd').checked = !hasPay;
+            document.getElementById('fPayDate').disabled = !hasPay;
+            document.getElementById('fPayDate').value = hasPay ? entry.payDate : '';
+            document.getElementById('fClient').value = entry.client;
+            document.getElementById('fStatus').value = entry.status;
+            const editItems = (Array.isArray(entry.slotItems) && entry.slotItems.length > 0)
+              ? entry.slotItems
+              : [{ slotId: entry.slotId || '', days: entry.days || 10 }];
+            renderSlotItemsRows(editItems);
+            document.getElementById('fProductName').value = entry.productName;
+            document.getElementById('fInvoice').checked = !!entry.invoice;
+            document.getElementById('fPaid').checked = !!entry.paid;
+            document.getElementById('fContract').value = entry.contract;
+            document.getElementById('fResaleCost').value = entry.resaleCost;
+            document.getElementById('fWorkCost').value = entry.workCost;
+            document.getElementById('fMemo').value = entry.memo || '';
+            document.getElementById('entryFormTitleText').textContent = '정산 내역 수정';
+            document.getElementById('btnSaveEntry').textContent = '수정 내용 저장';
+            document.getElementById('btnCancelEntryEdit').classList.remove('hidden');
+            updateFormPreview();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        });
+
+        document.getElementById('payrollTableBody').addEventListener('change', (e) => {
+          const entries = getCurrentEntries();
+          const cbInv = e.target.closest('input[data-action="toggle-invoice"]');
+          if (cbInv) {
+            const entry = entries.find(x => x.id === cbInv.dataset.id);
+            if (entry) {
+              entry.invoice = cbInv.checked;
+              saveState(true);
+              renderTable();
+              showToast(entry.invoice ? '계산서 발행으로 표시됨' : '계산서 미발행으로 표시됨');
+            }
+            return;
+          }
+          const cbPaid = e.target.closest('input[data-action="toggle-paid"]');
+          if (cbPaid) {
+            const entry = entries.find(x => x.id === cbPaid.dataset.id);
+            if (entry) {
+              entry.paid = cbPaid.checked;
+              saveState(true);
+              renderTable();
+              showToast(entry.paid ? '광고주 입금 완료로 처리됨' : '미입금건으로 이동됨');
+            }
+          }
+        });
+
+        // Filters
+        ['searchQuery', 'filterStatus', 'filterInvoice', 'filterPaid'].forEach(id => {
+          document.getElementById(id).addEventListener('input', renderTable);
+          document.getElementById(id).addEventListener('change', renderTable);
+        });
+
+
+
+        // Excel / CSV Import
+        function normalizeExcelDate(val) {
+          if (val === null || val === undefined || val === '' || String(val).trim() === '미정') return '';
+          if (typeof val === 'number' && window.XLSX && XLSX.SSF) {
+            const d = XLSX.SSF.parse_date_code(val);
+            if (d && d.y && d.m && d.d) {
+              return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+            }
+          }
+          const str = String(val).trim().replace(/[./]/g, '-');
+          const m = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+          if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+          return '';
+        }
+
+        function parseBoolCell(val) {
+          const v = String(val || '').trim().toUpperCase();
+          return v === 'Y' || v === 'O' || v === 'TRUE' || v === '1' || v === '발행' || v === '완료' || v === '입금완료' || v === '입금';
+        }
+
+        function parseNumCell(val) {
+          if (typeof val === 'number') return val;
+          return Number(String(val || '').replace(/[^0-9.-]/g, '')) || 0;
+        }
+
+        document.getElementById('btnImportExcel').addEventListener('click', () => {
+          document.getElementById('excelFileInput').click();
+        });
+
+        document.getElementById('excelFileInput').addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          if (!window.XLSX) {
+            showToast('엑셀 파서를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const data = new Uint8Array(evt.target.result);
+              const wb = XLSX.read(data, { type: 'array' });
+              // Pick sheet matching currentMonth (e.g. "11월") if present, otherwise first sheet
+              const monthNum = String(Number(currentMonth.split('-')[1])) + '월';
+              const targetSheetName = wb.SheetNames.includes(monthNum) ? monthNum : wb.SheetNames[0];
+              const targetSheet = wb.Sheets[targetSheetName];
+
+              // Auto-detect header row (row 0 or row with 업체명/상품명/계약금액 such as row 4 in 2026(1).xlsx)
+              const matrix = XLSX.utils.sheet_to_json(targetSheet, { header: 1, defval: '' });
+              let headerRowIdx = 0;
+              for (let i = 0; i < Math.min(10, matrix.length); i++) {
+                const rowText = (matrix[i] || []).map(c => String(c || '').trim()).join('|');
+                if (rowText.includes('업체명') && (rowText.includes('상품명') || rowText.includes('계약금액'))) {
+                  headerRowIdx = i;
+                  break;
+                }
+              }
+              const rows = XLSX.utils.sheet_to_json(targetSheet, { range: headerRowIdx, defval: '' });
+              if (!rows.length) {
+                showToast('엑셀 파일에 불러올 데이터가 없습니다.');
+                return;
+              }
+              const entries = getCurrentEntries();
+              let added = 0;
+              rows.forEach(r => {
+                const client = String(r['업체명'] || r['광고주'] || r['거래처'] || '').trim();
+                const productName = String(r['상품명'] || r['상품명 (슬롯/일수)'] || r['슬롯'] || '').trim();
+                const contract = parseNumCell(r['계약금액(공급가)'] ?? r['계약금액'] ?? r['공급가'] ?? 0);
+                if (!client && !productName && !contract) return;
+
+                const statusRaw = String(r['구분'] || '오픈').trim();
+                const status = ['오픈', '중단', '환불', '이월'].includes(statusRaw) ? statusRaw : '오픈';
+                const parsed = parseProductName(productName);
+                const validItems = parsed.items.filter(it => it.slot && it.days !== null);
+                let resaleCost = parseNumCell(r['리셀및작업비용'] ?? r['리셀비용'] ?? r['리셀러'] ?? r['리셀'] ?? 0);
+                const workCost = parseNumCell(r['추가작업비용'] ?? r['작업비용'] ?? 0);
+
+                if (resaleCost === 0 && status !== '중단' && status !== '이월' && status !== '환불' && validItems.length > 0) {
+                  const sign = contract < 0 ? -1 : 1;
+                  resaleCost = sign * validItems.reduce((acc, it) => acc + it.slot.dailyCost * (it.qty || 1) * it.days, 0);
+                }
+
+                const rawPay = r['결제날짜'] ?? r['결제일'] ?? '';
+                const normPay = normalizeExcelDate(rawPay);
+                const explicitPaid = r['광고주입금'] ?? r['입금여부'] ?? r['입금'];
+                const isPaid = explicitPaid !== undefined && explicitPaid !== ''
+                  ? parseBoolCell(explicitPaid)
+                  : (String(rawPay).trim() !== '' && String(rawPay).trim().toUpperCase() !== 'X' && String(rawPay).trim() !== '미정');
+
+                entries.unshift({
+                  id: uid('ent'),
+                  openDate: normalizeExcelDate(r['오픈날짜'] ?? r['오픈일']),
+                  payDate: normPay,
+                  client: client || '미입력',
+                  status,
+                  slotItems: validItems.map(it => ({ slotId: it.slot.id, qty: it.qty || 1, days: it.days })),
+                  slotId: parsed.slot ? parsed.slot.id : '',
+                  days: validItems.reduce((acc, it) => acc + it.days, 0) || parsed.days || 0,
+                  productName,
+                  invoice: parseBoolCell(r['계산서유무'] ?? r['계산서여부'] ?? r['계산서'] ?? r['세금계산서']),
+                  paid: isPaid,
+                  contract,
+                  resaleCost,
+                  workCost,
+                  memo: String(r['메모'] || r['특이사항'] || r['비고'] || '').trim()
+                });
+                added++;
+              });
+              if (added > 0) {
+                saveState(true);
+                renderTable();
+                showToast(`엑셀에서 ${added}건의 정산 내역을 자동으로 불러왔습니다.`);
+              } else {
+                showToast('인식할 수 있는 정산 행이 없습니다. (업체명/상품명/계약금액 열 확인)');
+              }
+            } catch (err) {
+              showToast('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+            } finally {
+              e.target.value = '';
+            }
+          };
+          reader.readAsArrayBuffer(file);
+        });
+
+        // Select All & Delete Selected Entries
+        document.getElementById('selectAllEntries').addEventListener('change', (e) => {
+          const checked = e.target.checked;
+          document.querySelectorAll('#payrollTableBody .entry-select-cb').forEach(cb => {
+            cb.checked = checked;
+          });
+        });
+
+        document.getElementById('btnDeleteSelectedEntries').addEventListener('click', () => {
+          const selectedIds = [...document.querySelectorAll('#payrollTableBody .entry-select-cb:checked')].map(cb => cb.dataset.id);
+          if (selectedIds.length === 0) {
+            showToast('삭제할 항목을 먼저 선택해 주세요.');
+            return;
+          }
+          openConfirm('선택 삭제', `선택한 ${selectedIds.length}건의 정산 내역을 삭제할까요?`, async () => {
+            const idSet = new Set(selectedIds);
+            setCurrentEntries(getCurrentEntries().filter(x => !idSet.has(x.id)));
+            if (supabaseClient) {
+              try {
+                const { error: delErr } = await supabaseClient.from('payroll_records').delete().in('id', selectedIds);
+                if (delErr) showToast('서버 삭제 오류: ' + delErr.message);
+              } catch (err) {}
+            }
+            saveState(true);
+            renderTable();
+            showToast(`${selectedIds.length}건의 정산 내역이 삭제되었습니다.`);
+          });
+        });
+
+                // Export & Print
+        document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
+        document.getElementById('btnPrint').addEventListener('click', () => window.print());
+
+        // Modal buttons
+        document.getElementById('btnToggleForms').addEventListener('click', (e) => {
+          const ws = document.getElementById('formsWorkspace');
+          const hidden = ws.classList.toggle('hidden');
+          e.currentTarget.textContent = hidden ? '입력/슬롯 펼치기 ▼' : '입력/슬롯 접기 ▲';
+        });
+        document.getElementById('btnToggleUnpaid').addEventListener('click', (e) => {
+          const wrap = document.getElementById('unpaidTableWrap');
+          const hidden = wrap.classList.toggle('hidden');
+          e.currentTarget.textContent = hidden ? '목록 펼치기 ▼' : '목록 접기 ▲';
+        });
+
+        document.getElementById('confirmCancelBtn').addEventListener('click', closeConfirm);
+        document.getElementById('confirmOkBtn').addEventListener('click', () => {
+          if (pendingConfirmAction) pendingConfirmAction();
+          closeConfirm();
+        });
+
+      });
+    })();
+  </script>
+</body>
+</html>
