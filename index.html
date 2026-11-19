@@ -293,12 +293,7 @@
             <!-- Rendered by JS -->
           </div>
 
-          <div class="px-4 py-2.5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>단가 수정 후 일괄 적용</span>
-            <button id="btnSyncAllSlotCosts" type="button" class="font-bold text-indigo-600 hover:text-indigo-800 transition">
-              전체 내역 단가 재계산
-            </button>
-          </div>
+
         </aside>
 
         <!-- Right: 정산 내역 등록 -->
@@ -560,10 +555,10 @@
           <div class="text-xs font-bold text-slate-700">로그 유형</div>
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" data-log-type="ALL" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-indigo-600 bg-indigo-600 text-white shadow-sm transition">전체</button>
-            <button type="button" data-log-type="신규" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">신규</button>
-            <button type="button" data-log-type="수정" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">수정</button>
-            <button type="button" data-log-type="환불" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">환불/중단</button>
-            <button type="button" data-log-type="삭제" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">삭제</button>
+            <button type="button" data-log-type="오픈" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">오픈</button>
+            <button type="button" data-log-type="중단" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">중단</button>
+            <button type="button" data-log-type="환불" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">환불</button>
+            <button type="button" data-log-type="이월" class="log-type-btn px-4 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">이월</button>
           </div>
         </div>
 
@@ -584,6 +579,9 @@
               <input id="logSearchQuery" type="text" placeholder="검색어를 입력하세요" class="pl-3 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
             </div>
+            <button id="btnDeleteSelectedLogs" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition">
+              선택 삭제
+            </button>
             <button id="btnExportLogsCsv" type="button" class="px-4 py-1.5 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
               엑셀 다운로드
             </button>
@@ -597,14 +595,14 @@
           <table class="w-full text-center border-collapse min-w-[1100px]">
             <thead>
               <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 whitespace-nowrap">
-                <th class="py-3 px-3">로그ID</th>
+                <th class="py-3 px-3 text-center">
+                  <input id="selectAllLogs" type="checkbox" class="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 cursor-pointer" title="전체 선택" />
+                </th>
                 <th class="py-3 px-3">담당자</th>
                 <th class="py-3 px-3">업체명</th>
                 <th class="py-3 px-3">구분</th>
                 <th class="py-3 px-3">상품명 (슬롯/일수)</th>
-                <th class="py-3 px-3">상세</th>
-                <th class="py-3 px-3">이벤트 유형</th>
-                <th class="py-3 px-3">수정한 사람</th>
+                <th class="py-3 px-3">작성/수정자</th>
                 <th class="py-3 px-3">생성일</th>
                 <th class="py-3 px-3 text-right">계약금액</th>
                 <th class="py-3 px-3 text-right">실지급액</th>
@@ -620,17 +618,6 @@
           <div id="logPagination" class="flex items-center gap-1"></div>
         </div>
       </section>
-    </div>
-  </div>
-
-  <!-- Log Detail Modal -->
-  <div id="logDetailModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden">
-      <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-        <h3 class="text-sm font-bold text-slate-900">로그 상세 내역</h3>
-        <button id="btnCloseLogDetail" type="button" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
-      </div>
-      <div id="logDetailContent" class="p-5 text-xs text-slate-700 space-y-2.5"></div>
     </div>
   </div>
 
@@ -881,6 +868,8 @@ grant execute on function public.is_admin() to authenticated;`;
       let pendingConfirmAction = null;
       let isResaleManuallyEdited = false;
       const STORAGE_KEY_LOGS = 'erp_payroll_logs_v3';
+      const STORAGE_KEY_DISMISSED_LOGS = 'erp_payroll_dismissed_logs_v3';
+      let dismissedLogIds = new Set();
       let activityLogs = [];
       let logPeriodMode = 'today';
       let logGroupMode = 'all';
@@ -898,7 +887,9 @@ grant execute on function public.is_admin() to authenticated;`;
         try {
           const raw = localStorage.getItem(STORAGE_KEY_LOGS);
           activityLogs = raw ? JSON.parse(raw) : [];
-        } catch (e) { activityLogs = []; }
+          const dRaw = localStorage.getItem(STORAGE_KEY_DISMISSED_LOGS);
+          dismissedLogIds = new Set(dRaw ? JSON.parse(dRaw) : []);
+        } catch (e) { activityLogs = []; dismissedLogIds = new Set(); }
       }
 
       async function recordActivityLog(eventType, entryObj, detailNote = '') {
@@ -2109,7 +2100,6 @@ grant execute on function public.is_admin() to authenticated;`;
             }
             saveState(true);
             renderTable();
-            recordActivityLog('입금확인', entry);
             showToast(`'${entry.client}' 입금 완료 (결제일: ${entry.payDate})`);
           }
         });
@@ -2182,34 +2172,6 @@ grant execute on function public.is_admin() to authenticated;`;
         });
 
 
-        // Sync all slot costs
-        document.getElementById('btnSyncAllSlotCosts').addEventListener('click', () => {
-          const entries = getCurrentEntries();
-          let updated = 0;
-          entries.forEach(entry => {
-            const items = (Array.isArray(entry.slotItems) && entry.slotItems.length > 0)
-              ? entry.slotItems
-              : (entry.slotId ? [{ slotId: entry.slotId, days: entry.days }] : []);
-            let sum = 0;
-            let matchedAny = false;
-            items.forEach(it => {
-              const slot = slots.find(s => s.id === it.slotId);
-              if (slot && it.days) {
-                const q = Math.max(1, Number(it.qty) || 1);
-                sum += slot.dailyCost * q * Number(it.days);
-                matchedAny = true;
-              }
-            });
-            if (matchedAny) {
-              const sign = entry.status === '환불' ? -1 : 1;
-              entry.resaleCost = sign * sum;
-              updated++;
-            }
-          });
-          saveState(true);
-          renderTable();
-          showToast(`${updated}건의 내역에 최신 슬롯 단가가 반영되었습니다.`);
-        });
 
         // Entry form live calculations & auto-recognition from productName
         document.getElementById('fProductName').addEventListener('input', () => {
@@ -2363,7 +2325,6 @@ grant execute on function public.is_admin() to authenticated;`;
             }
             saveState(true);
             renderTable();
-            recordActivityLog(entry.paid ? '입금확인' : '수정', entry, entry.paid ? `입금 완료 (결제일: ${entry.payDate})` : '미입금으로 변경');
             showToast(entry.paid ? `입금 완료 처리됨 (결제일: ${entry.payDate})` : '미입금으로 변경됨 (결제일: X)');
             return;
           }
@@ -2629,17 +2590,60 @@ grant execute on function public.is_admin() to authenticated;`;
           const end = document.getElementById('logEndDate').value;
           const q = document.getElementById('logSearchQuery').value.trim().toLowerCase();
 
-          let list = activityLogs.filter(l => {
+          // Combine explicit activityLogs + existing payroll_records matching openDate/payDate in [start, end]
+          const combined = [...activityLogs];
+          const loggedKeys = new Set(activityLogs.map(l => `${l.client}__${l.productName}__${l.dateKey}`));
+
+          const targetUids = (currentUser && currentUser.role === 'admin')
+            ? Object.keys(userData)
+            : [activeFreelancerId];
+
+          targetUids.forEach(uidKey => {
+            const mMap = userData[uidKey] || {};
+            const fObj = freelancerDirectory.find(f => f.id === uidKey);
+            const fName = (fObj && fObj.name) || (currentUser ? currentUser.name : '');
+            Object.keys(mMap).forEach(ym => {
+              (mMap[ym] || []).forEach(e => {
+                const dOpen = (e.openDate && /^\d{4}-\d{2}-\d{2}$/.test(e.openDate)) ? e.openDate : '';
+                const dPay = (e.payDate && /^\d{4}-\d{2}-\d{2}$/.test(e.payDate)) ? e.payDate : '';
+                const matchOpen = dOpen && (!start || dOpen >= start) && (!end || dOpen <= end);
+                const matchPay = dPay && (!start || dPay >= start) && (!end || dPay <= end);
+                if (!matchOpen && !matchPay) return;
+
+                const dk = matchOpen ? dOpen : dPay;
+                const dedupKey = `${e.client}__${e.productName}__${dk}`;
+                if (loggedKeys.has(dedupKey)) return;
+
+                const c = calcRow(e);
+                combined.push({
+                  id: 'REC_' + String(e.id || '').slice(-6).toUpperCase(),
+                  userId: uidKey,
+                  freelancerName: fName,
+                  client: e.client || '',
+                  status: e.status || '오픈',
+                  productName: e.productName || '',
+                  eventType: '신규',
+                  actor: fName,
+                  createdAt: dk,
+                  dateKey: dk,
+                  contract: c.contract,
+                  finalPayout: c.finalPayout,
+                  detail: `${e.status} | 오픈: ${e.openDate || 'X'} | 결제: ${e.payDate || 'X'} | 계약 ${fmt(c.contract)} | 리셀 ${fmt(c.totalCost)} | 실지급 ${fmt(c.finalPayout)}${e.memo ? ' | 메모: ' + e.memo : ''}`
+                });
+              });
+            });
+          });
+
+          let list = combined.filter(l => {
+            if (dismissedLogIds.has(l.id)) return false;
             if (currentUser && currentUser.role !== 'admin' && l.userId !== currentUser.id) return false;
             const dk = l.dateKey || (l.createdAt || '').slice(0, 10);
             if (start && dk && dk < start) return false;
             if (end && dk && dk > end) return false;
-            if (logTypeFilter !== 'ALL') {
-              if (logTypeFilter === '환불') {
-                if (l.status !== '환불' && l.status !== '중단') return false;
-              } else if (l.eventType !== logTypeFilter) {
-                return false;
-              }
+            if (l.eventType === '입금확인') return false;
+            const displayLabel = l.eventType === '삭제' ? '삭제' : (l.status || '오픈');
+            if (logTypeFilter !== 'ALL' && displayLabel !== logTypeFilter) {
+              return false;
             }
             if (q) {
               const hay = `${l.id} ${l.freelancerName} ${l.client} ${l.productName} ${l.actor} ${l.eventType} ${l.detail}`.toLowerCase();
@@ -2680,27 +2684,27 @@ grant execute on function public.is_admin() to authenticated;`;
           const slice = filtered.slice((logPage - 1) * pageSize, logPage * pageSize);
 
           if (slice.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-xs text-slate-400">해당 기간에 기록된 로그가 없습니다.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="py-12 text-center text-xs text-slate-400">해당 기간에 기록된 로그가 없습니다.</td></tr>`;
           } else {
             tbody.innerHTML = slice.map(l => {
-              const evBadge =
-                l.eventType === '신규' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                l.eventType === '삭제' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                l.eventType === '입금확인' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                'bg-indigo-50 text-indigo-700 border-indigo-200';
+              const displayLabel = l.eventType === '삭제' ? '삭제' : (l.status || '오픈');
+              const badgeCls =
+                displayLabel === '입금 확인' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                displayLabel === '오픈' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                displayLabel === '중단' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                displayLabel === '이월' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                'bg-rose-50 text-rose-700 border-rose-200';
               return `
                 <tr class="hover:bg-slate-50/80 transition">
-                  <td class="py-2.5 px-3 tabular-nums text-slate-500 whitespace-nowrap">${escapeHtml(l.id)}</td>
+                  <td class="py-2.5 px-3 text-center">
+                    <input type="checkbox" class="log-select-cb w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 cursor-pointer" data-id="${escapeHtml(l.id)}" />
+                  </td>
                   <td class="py-2.5 px-3 font-medium text-slate-700 whitespace-nowrap">${escapeHtml(l.freelancerName)}</td>
                   <td class="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">${escapeHtml(l.client)}${l._groupCount > 1 ? ` <span class="text-[10px] text-indigo-600">(${l._groupCount}건)</span>` : ''}</td>
-                  <td class="py-2.5 px-3 whitespace-nowrap">${escapeHtml(l.status)}</td>
-                  <td class="py-2.5 px-3 text-left max-w-[240px] truncate" title="${escapeHtml(l.productName)}">${escapeHtml(l.productName)}</td>
                   <td class="py-2.5 px-3 whitespace-nowrap">
-                    <button type="button" data-log-detail-id="${escapeHtml(l.id)}" class="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">상세보기</button>
+                    <span class="inline-block px-2.5 py-0.5 text-[11px] font-semibold rounded-full border ${badgeCls}">${escapeHtml(displayLabel)}</span>
                   </td>
-                  <td class="py-2.5 px-3 whitespace-nowrap">
-                    <span class="inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full border ${evBadge}">${escapeHtml(l.eventType)}</span>
-                  </td>
+                  <td class="py-2.5 px-3 text-left max-w-[300px] truncate" title="${escapeHtml(l.productName)}">${escapeHtml(l.productName)}</td>
                   <td class="py-2.5 px-3 font-medium text-slate-700 whitespace-nowrap">${escapeHtml(l.actor)}</td>
                   <td class="py-2.5 px-3 tabular-nums text-slate-500 whitespace-nowrap">${escapeHtml(l.createdAt)}</td>
                   <td class="py-2.5 px-3 text-right tabular-nums font-medium whitespace-nowrap">${fmt(l.contract)}</td>
@@ -2710,6 +2714,8 @@ grant execute on function public.is_admin() to authenticated;`;
             }).join('');
           }
 
+          const selectAllLogsCb = document.getElementById('selectAllLogs');
+          if (selectAllLogsCb) selectAllLogsCb.checked = false;
           const pag = document.getElementById('logPagination');
           let btns = `<button type="button" data-log-page="1" class="px-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50">&laquo;</button>`;
           for (let pNum = 1; pNum <= totalPages; pNum++) {
@@ -2781,35 +2787,47 @@ grant execute on function public.is_admin() to authenticated;`;
           renderLogTable();
         });
 
-        document.getElementById('logTableBody').addEventListener('click', (e) => {
-          const btn = e.target.closest('button[data-log-detail-id]');
-          if (!btn) return;
-          const item = activityLogs.find(x => x.id === btn.dataset.logDetailId);
-          if (!item) return;
-          document.getElementById('logDetailContent').innerHTML = `
-            <div><span class="font-bold text-slate-500">로그ID:</span> ${escapeHtml(item.id)}</div>
-            <div><span class="font-bold text-slate-500">업체명:</span> ${escapeHtml(item.client)}</div>
-            <div><span class="font-bold text-slate-500">상품명:</span> ${escapeHtml(item.productName)}</div>
-            <div><span class="font-bold text-slate-500">이벤트:</span> ${escapeHtml(item.eventType)} (${escapeHtml(item.status)})</div>
-            <div><span class="font-bold text-slate-500">수정한 사람:</span> ${escapeHtml(item.actor)}</div>
-            <div><span class="font-bold text-slate-500">생성일:</span> ${escapeHtml(item.createdAt)}</div>
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-800">${escapeHtml(item.detail)}</div>
-          `;
-          document.getElementById('logDetailModal').classList.remove('hidden');
+        document.getElementById('selectAllLogs').addEventListener('change', (e) => {
+          const checked = e.target.checked;
+          document.querySelectorAll('#logTableBody .log-select-cb').forEach(cb => {
+            cb.checked = checked;
+          });
         });
 
-        document.getElementById('btnCloseLogDetail').addEventListener('click', () => {
-          document.getElementById('logDetailModal').classList.add('hidden');
+        document.getElementById('btnDeleteSelectedLogs').addEventListener('click', () => {
+          const selectedIds = [...document.querySelectorAll('#logTableBody .log-select-cb:checked')].map(cb => cb.dataset.id);
+          if (selectedIds.length === 0) {
+            showToast('삭제할 로그를 먼저 선택해 주세요.');
+            return;
+          }
+          openConfirm('로그 선택 삭제', `선택한 ${selectedIds.length}건의 로그를 삭제할까요?`, async () => {
+            const idSet = new Set(selectedIds);
+            activityLogs = activityLogs.filter(l => !idSet.has(l.id));
+            selectedIds.forEach(id => dismissedLogIds.add(id));
+            try {
+              localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(activityLogs));
+              localStorage.setItem(STORAGE_KEY_DISMISSED_LOGS, JSON.stringify([...dismissedLogIds]));
+            } catch (e) {}
+            const realIds = selectedIds.filter(id => !id.startsWith('REC_'));
+            if (supabaseClient && realIds.length > 0) {
+              try { await supabaseClient.from('activity_logs').delete().in('id', realIds); } catch (e) {}
+            }
+            renderLogTable();
+            showToast(`${selectedIds.length}건의 로그가 삭제되었습니다.`);
+          });
         });
 
         document.getElementById('btnExportLogsCsv').addEventListener('click', () => {
           const rows = getFilteredLogs();
-          const headers = ['로그ID', '담당자', '업체명', '구분', '상품명', '이벤트유형', '수정한사람', '생성일', '계약금액', '실지급액', '상세'];
-          const csvRows = rows.map(l => [
-            l.id, l.freelancerName, `"${String(l.client).replace(/"/g, '""')}"`, l.status,
-            `"${String(l.productName).replace(/"/g, '""')}"`, l.eventType, l.actor, l.createdAt,
-            l.contract, l.finalPayout, `"${String(l.detail).replace(/"/g, '""')}"`
-          ].join(','));
+          const headers = ['로그ID', '담당자', '업체명', '구분', '상품명', '작성/수정자', '생성일', '계약금액', '실지급액'];
+          const csvRows = rows.map(l => {
+            const displayLabel = l.eventType === '삭제' ? '삭제' : (l.status || '오픈');
+            return [
+              l.id, l.freelancerName, `"${String(l.client).replace(/"/g, '""')}"`, displayLabel,
+              `"${String(l.productName).replace(/"/g, '""')}"`, l.actor, l.createdAt,
+              l.contract, l.finalPayout
+            ].join(',');
+          });
           const blob = new Blob(['\uFEFF' + [headers.join(','), ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
