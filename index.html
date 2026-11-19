@@ -2042,6 +2042,28 @@ grant execute on function public.is_admin() to authenticated;`;
         });
 
         document.getElementById('fStatus').addEventListener('change', () => {
+          const st = document.getElementById('fStatus').value;
+          if (st === '중단') {
+            document.getElementById('fOpenDateTbd').checked = true;
+            document.getElementById('fOpenDate').disabled = true;
+            document.getElementById('fOpenDate').value = '';
+
+            document.getElementById('fPayDateTbd').checked = false;
+            document.getElementById('fPayDate').disabled = false;
+            document.getElementById('fPayDate').value = getTodayYmd();
+
+            document.getElementById('fInvoice').checked = true;
+            document.getElementById('fPaid').checked = true;
+
+            const curResale = Number(document.getElementById('fResaleCost').value) || 0;
+            const curContract = Number(document.getElementById('fContract').value) || 0;
+            if (curResale !== 0 && curContract === 0) {
+              document.getElementById('fContract').value = Math.abs(curResale);
+            }
+            document.getElementById('fResaleCost').value = 0;
+            updateFormPreview();
+          }
+
           const items = getSlotItemsFromDom();
           if (items.some(it => it.slotId)) {
             applySlotItemsToForm();
