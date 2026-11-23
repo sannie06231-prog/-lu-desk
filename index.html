@@ -52,9 +52,12 @@
   <!-- ==================== ERP LOGIN VIEW ==================== -->
   <div id="loginView" class="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-100 via-indigo-50/40 to-slate-100">
     <div class="w-full max-w-xl bg-white rounded-3xl border border-slate-200/80 shadow-2xl shadow-slate-900/10 overflow-hidden">
-      <div class="px-8 py-6 bg-gradient-to-r from-slate-900 via-[#1a1847] to-indigo-950 text-white flex items-center gap-3.5">
-        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-lg shadow-md">₩</div>
-        <h1 class="text-xl font-extrabold tracking-tight">급여 현황</h1>
+      <div class="px-8 py-6 bg-gradient-to-r from-slate-900 via-[#1a1847] to-indigo-950 text-white flex items-center justify-between gap-3.5">
+        <div class="flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-lg shadow-md">₩</div>
+          <h1 class="text-xl font-extrabold tracking-tight">급여 현황</h1>
+        </div>
+        <span id="loginVersionBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-indigo-200 border border-white/15 tabular-nums">v1.0</span>
       </div>
 
       <form id="loginForm" class="p-8 sm:p-10 space-y-5">
