@@ -1037,6 +1037,50 @@ grant execute on function public.is_admin() to authenticated;`;
         return false;
       }
 
+      async function saveSingleEntryToSupabase(e) {
+        if (!supabaseClient || !currentUser || !e) return true;
+        try {
+          const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+          const targetUid = isUuid(activeFreelancerId) ? activeFreelancerId : currentUser.id;
+          if (!isUuid(targetUid)) return true;
+
+          const baseRow = {
+            id: e.id,
+            user_id: targetUid,
+            month: currentMonth,
+            open_date: e.openDate || '',
+            pay_date: e.payDate || '',
+            client: e.client || '',
+            status: e.status || '오픈',
+            slot_id: e.slotId || '',
+            days: Number(e.days) || 0,
+            product_name: e.productName || '',
+            invoice: !!e.invoice,
+            paid: !!e.paid,
+            contract: Number(e.contract) || 0,
+            resale_cost: Number(e.resaleCost) || 0,
+            work_cost: Number(e.workCost) || 0
+          };
+          let { error: recErr } = await supabaseClient.from('payroll_records').upsert([{ ...baseRow, memo: e.memo || '' }]);
+          if (recErr && String(recErr.message || '').toLowerCase().includes('memo')) {
+            const retry = await supabaseClient.from('payroll_records').upsert([baseRow]);
+            recErr = retry.error;
+          }
+          if (recErr) {
+            showToast('서버 저장 오류: ' + recErr.message);
+            return false;
+          }
+          const statusEl = document.getElementById('saveStatusText');
+          statusEl.classList.remove('hidden');
+          clearTimeout(statusEl._timer);
+          statusEl._timer = setTimeout(() => statusEl.classList.add('hidden'), 2500);
+          return true;
+        } catch (err) {
+          showToast('서버 저장 중 네트워크 오류가 발생했습니다.');
+          return false;
+        }
+      }
+
       async function saveState(showBadge = false) {
         try {
           localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots));
@@ -2098,7 +2142,8 @@ grant execute on function public.is_admin() to authenticated;`;
             if (!entry.payDate || entry.payDate === 'X' || entry.payDate === '미정') {
               entry.payDate = getTodayYmd();
             }
-            saveState(true);
+            try { localStorage.setItem(STORAGE_KEY_USER_DATA, JSON.stringify(userData)); } catch (err) {}
+            saveSingleEntryToSupabase(entry);
             renderTable();
             showToast(`'${entry.client}' 입금 완료 (결제일: ${entry.payDate})`);
           }
@@ -2254,8 +2299,12 @@ grant execute on function public.is_admin() to authenticated;`;
         });
 
         // Entry form submit
-        document.getElementById('entryForm').addEventListener('submit', (e) => {
+        document.getElementById('entryForm').addEventListener('submit', async (e) => {
           e.preventDefault();
+          const saveBtn = document.getElementById('btnSaveEntry');
+          saveBtn.disabled = true;
+          const prevBtnText = saveBtn.textContent;
+          saveBtn.textContent = '저장 중...';
           const entries = getCurrentEntries();
           const id = document.getElementById('editingEntryId').value;
           const openTbd = document.getElementById('fOpenDateTbd').checked;
@@ -2281,16 +2330,21 @@ grant execute on function public.is_admin() to authenticated;`;
           if (id) {
             const idx = entries.findIndex(x => x.id === id);
             if (idx !== -1) entries[idx] = payload;
-            recordActivityLog('수정', payload);
-            showToast('정산 내역이 수정되었습니다.');
           } else {
             entries.push(payload);
-            recordActivityLog('신규', payload);
-            showToast('새 정산 내역이 추가되었습니다.');
           }
-          saveState(true);
-          resetEntryForm();
-          renderTable();
+          try {
+            localStorage.setItem(STORAGE_KEY_USER_DATA, JSON.stringify(userData));
+          } catch (err) {}
+          const ok = await saveSingleEntryToSupabase(payload);
+          saveBtn.disabled = false;
+          saveBtn.textContent = prevBtnText;
+          if (ok) {
+            recordActivityLog(id ? '수정' : '신규', payload);
+            showToast(id ? '정산 내역이 서버에 수정 저장되었습니다.' : '새 정산 내역이 서버에 저장되었습니다.');
+            resetEntryForm();
+            renderTable();
+          }
         });
 
         document.getElementById('btnCancelEntryEdit').addEventListener('click', resetEntryForm);
@@ -2307,7 +2361,8 @@ grant execute on function public.is_admin() to authenticated;`;
 
           if (action === 'toggle-invoice') {
             entry.invoice = !entry.invoice;
-            saveState(true);
+            try { localStorage.setItem(STORAGE_KEY_USER_DATA, JSON.stringify(userData)); } catch (err) {}
+            saveSingleEntryToSupabase(entry);
             renderTable();
             recordActivityLog('계산서', entry, `계산서 ${entry.invoice ? '발행' : '미발행'} 변경`);
             showToast(entry.invoice ? '계산서 발행으로 변경됨' : '계산서 미발행으로 변경됨');
@@ -2323,7 +2378,8 @@ grant execute on function public.is_admin() to authenticated;`;
             } else {
               entry.payDate = '';
             }
-            saveState(true);
+            try { localStorage.setItem(STORAGE_KEY_USER_DATA, JSON.stringify(userData)); } catch (err) {}
+            saveSingleEntryToSupabase(entry);
             renderTable();
             showToast(entry.paid ? `입금 완료 처리됨 (결제일: ${entry.payDate})` : '미입금으로 변경됨 (결제일: X)');
             return;
